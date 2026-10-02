@@ -39,8 +39,15 @@ app.prepare().then(() => {
     // Não derruba upgrades que não são do Socket.IO (ex: HMR do Next em dev).
     destroyUpgrade: false,
     // Bloqueia Cross-Site WebSocket Hijacking: só aceita conexões da própria origem.
-    allowRequest: (req, callback) =>
-      callback(null, isAllowedOrigin(req.headers.origin, req.headers.host, req.headers["x-forwarded-host"])),
+    // Navegadores não enviam Origin em GET para o mesmo site (handshake via polling); nesse caso
+    // vale o Sec-Fetch-Site, que o navegador preenche e uma página de outro site não consegue forjar.
+    allowRequest: (req, callback) => {
+      const origin = req.headers.origin;
+      const allowed = origin
+        ? isAllowedOrigin(origin, req.headers.host, req.headers["x-forwarded-host"])
+        : req.headers["sec-fetch-site"] === "same-origin";
+      callback(null, allowed);
+    },
   });
 
   // Apenas a equipe autenticada (cookie HttpOnly com JWT válido) entra na sala de pedidos.

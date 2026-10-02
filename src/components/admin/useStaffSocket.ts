@@ -21,7 +21,8 @@ export function useStaffSocket(handlers: Handlers) {
 
   useEffect(() => {
     // Mesma origem: o cookie HttpOnly de sessão é enviado automaticamente no handshake.
-    const socket = io({ path: "/socket.io", withCredentials: true });
+    // WebSocket primeiro (o handshake sempre leva Origin); polling só como reserva.
+    const socket = io({ path: "/socket.io", withCredentials: true, transports: ["websocket", "polling"] });
     socket.on("connect", () => {
       setConnected(true);
       ref.current.onConnect?.();
