@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { OrderStatusValue, TrackedOrder } from "@/types/order";
 import { formatBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
+import { itemTitle } from "@/lib/item-title";
 import { Logo } from "@/components/brand/Logo";
 import { PixQrCode } from "./PixQrCode";
 
@@ -184,7 +185,7 @@ export function OrderTracker({ token }: { token: string }) {
               <li key={idx} className="flex justify-between gap-3">
                 <span>
                   <span className="font-semibold">{i.quantity}x</span>{" "}
-                  {i.halfProductName ? `½ ${i.productName} + ½ ${i.halfProductName}` : i.productName}
+                  {itemTitle(i)}
                   {i.variantName && <span className="text-stone-500"> ({i.variantName})</span>}
                   {i.addons.length > 0 && <span className="block text-stone-500">+ {i.addons.join(", ")}</span>}
                 </span>

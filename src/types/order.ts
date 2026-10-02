@@ -6,6 +6,7 @@ export type PaymentMethodValue = "PIX" | "CARD" | "CASH" | "ON_SITE";
 
 export type BoardOrderItem = {
   id: string;
+  categoryLabel: string | null;
   productName: string;
   halfProductName: string | null;
   variantName: string | null;
@@ -59,6 +60,7 @@ export type TrackedOrder = {
   customerName: string;
   items: {
     quantity: number;
+    categoryLabel: string | null;
     productName: string;
     halfProductName: string | null;
     variantName: string | null;

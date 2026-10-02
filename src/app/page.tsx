@@ -23,6 +23,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
         name: true,
         slug: true,
         allowsHalf: true,
+        itemLabel: true,
         products: {
           where: { active: true },
           orderBy: { sortOrder: "asc" },

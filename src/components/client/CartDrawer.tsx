@@ -6,6 +6,7 @@ import type { CartItem, OrderMode, PublicSettings } from "@/types/menu";
 import type { PaymentMethodValue } from "@/types/order";
 import { formatBRL, parseBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
+import { itemTitle } from "@/lib/item-title";
 import { buildOrderMessage, buildWhatsAppUrl, formatAddress } from "@/lib/whatsapp";
 import { PixQrCode } from "./PixQrCode";
 
@@ -258,7 +259,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
                   <li key={i.key} className="flex gap-3 py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="font-semibold">
-                        {i.halfProductName ? `½ ${i.productName} + ½ ${i.halfProductName}` : i.productName}
+                        {itemTitle(i)}
                         {i.variantName && <span className="font-normal text-stone-500"> · {i.variantName}</span>}
                       </p>
                       {i.addonNames.length > 0 && <p className="text-stone-500">+ {i.addonNames.join(", ")}</p>}

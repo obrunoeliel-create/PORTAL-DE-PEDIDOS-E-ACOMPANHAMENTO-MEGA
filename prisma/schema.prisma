@@ -54,6 +54,8 @@ model Category {
   sortOrder  Int       @default(0)
   // Permite pizza 1/2 a 1/2 entre produtos desta categoria
   allowsHalf Boolean   @default(false)
+  // Tipo do produto no singular, exibido antes do nome: "Esfiha" Calabresa, "Pizza" Baiana...
+  itemLabel  String?
   active     Boolean   @default(true)
   products   Product[]
   addons     Addon[]
@@ -162,6 +164,8 @@ model OrderItem {
   productName     String
   halfProductId   String?
   halfProductName String?
+  // Snapshot do tipo do produto (Esfiha, Pizza, Pastel...) no momento da compra
+  categoryLabel   String?
   variantName     String?
   // [{ "name": "Catupiry", "price": 400 }]
   addons          Json    @default("[]")

@@ -15,6 +15,8 @@ export type MenuCategory = {
   name: string;
   slug: string;
   allowsHalf: boolean;
+  /** Tipo no singular: "Esfiha", "Pizza", "Pastel"... (null para bebidas) */
+  itemLabel: string | null;
   products: MenuProduct[];
   addons: MenuAddon[];
 };
@@ -40,6 +42,7 @@ export type CartItem = {
   variantName?: string;
   halfProductId?: string;
   halfProductName?: string;
+  categoryLabel?: string;
   addonIds: string[];
   addonNames: string[];
   quantity: number;

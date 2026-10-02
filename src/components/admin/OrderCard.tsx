@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { BoardOrder, OrderStatusValue } from "@/types/order";
 import { formatBRL, parseBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
+import { itemTitle } from "@/lib/item-title";
 import { buildCustomerUpdateMessage, buildWhatsAppUrl, toWhatsAppNumber } from "@/lib/whatsapp";
 
 const TYPE_BADGE: Record<BoardOrder["type"], string> = {
@@ -108,7 +109,7 @@ export function OrderCard({
         {order.items.map((i) => (
           <li key={i.id}>
             <span className="font-semibold">{i.quantity}x</span>{" "}
-            {i.halfProductName ? `1/2 ${i.productName} + 1/2 ${i.halfProductName}` : i.productName}
+            {itemTitle(i)}
             {i.variantName && <span className="text-stone-500"> ({i.variantName})</span>}
             {i.addons.length > 0 && (
               <span className="block pl-5 text-stone-500">+ {i.addons.map((a) => a.name).join(", ")}</span>

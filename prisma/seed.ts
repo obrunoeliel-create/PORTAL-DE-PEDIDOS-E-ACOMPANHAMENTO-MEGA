@@ -21,6 +21,8 @@ type SeedCategory = {
   name: string;
   slug: string;
   allowsHalf?: boolean;
+  /** Tipo no singular mostrado antes do nome do item (ex: "Esfiha" Calabresa). */
+  itemLabel?: string;
   products: SeedProduct[];
   addons?: { name: string; price: number }[];
 };
@@ -57,6 +59,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Esfihas",
     slug: "esfihas-tradicionais",
+    itemLabel: "Esfiha",
     products: [
       ...same(["Carne"], 3.5),
       ...same(["Queijo", "Calabresa", "Frango"], 4),
@@ -67,6 +70,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Esfihas 2 Sabores",
     slug: "esfihas-especiais",
+    itemLabel: "Esfiha 2 sabores",
     products: [
       ...same(
         [
@@ -100,6 +104,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Esfihas Doces",
     slug: "esfihas-doces",
+    itemLabel: "Esfiha doce",
     products: [
       ...same(["Chocolate", "Chocolate Branco"], 8),
       ...same(["Doce de Leite", "Brigadeiro", "Prestígio", "Confetes"], 9),
@@ -109,6 +114,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Pizzas",
     slug: "pizzas",
+    itemLabel: "Pizza",
     allowsHalf: true,
     products: [
       pizza("Mussarela", "Tomate, mussarela e azeitonas", 47, 24.5),
@@ -147,6 +153,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Pizzas Doces",
     slug: "pizzas-doces",
+    itemLabel: "Pizza doce",
     allowsHalf: true,
     products: [
       pizza("Chocolate", "Chocolate", 47, 24.5),
@@ -162,6 +169,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Pastéis",
     slug: "pasteis",
+    itemLabel: "Pastel",
     products: [
       ...same(
         [
@@ -186,6 +194,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Lanches",
     slug: "lanches",
+    itemLabel: "Lanche",
     products: [
       { name: "X-Burger", price: 17 },
       { name: "X-Salada", price: 19 },
@@ -208,6 +217,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Beirute",
     slug: "beirute",
+    itemLabel: "Beirute",
     products: [
       { name: "Á Moda", description: `Hambúrguer picado, milho e ervilha. ${BEIRUTE_DESC}`, price: 37 },
       ...same(
@@ -224,6 +234,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Porções",
     slug: "porcoes",
+    itemLabel: "Porção",
     products: [
       porcao("Fritas", 30, 20),
       porcao("Calabresa", 30, 20),
@@ -235,6 +246,7 @@ const MENU: SeedCategory[] = [
   {
     name: "Fogazzas",
     slug: "fogazzas",
+    itemLabel: "Fogazza",
     // O cardápio diz "a partir de R$ 10,00": criadas DESATIVADAS até o gerente confirmar os preços.
     products: same(["Pizza", "Calabresa com Queijo", "Frango com Queijo", "Carne com Queijo"], 10).map((p) => ({
       ...p,
@@ -322,8 +334,8 @@ async function seedMenu() {
   for (const [catIndex, cat] of MENU.entries()) {
     const category = await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: { name: cat.name, sortOrder: catIndex, allowsHalf: cat.allowsHalf ?? false },
-      create: { name: cat.name, slug: cat.slug, sortOrder: catIndex, allowsHalf: cat.allowsHalf ?? false },
+      update: { name: cat.name, sortOrder: catIndex, allowsHalf: cat.allowsHalf ?? false, itemLabel: cat.itemLabel ?? null },
+      create: { name: cat.name, slug: cat.slug, sortOrder: catIndex, allowsHalf: cat.allowsHalf ?? false, itemLabel: cat.itemLabel ?? null },
     });
 
     for (const [i, p] of cat.products.entries()) {

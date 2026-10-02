@@ -7,6 +7,7 @@ export class PricingError extends Error {}
 
 export type PricedLine = {
   productId: string;
+  categoryLabel: string | null;
   productName: string;
   halfProductId: string | null;
   halfProductName: string | null;
@@ -35,7 +36,7 @@ export async function priceOrderItems(items: OrderItemInput[]): Promise<{ lines:
   const [products, addons] = await Promise.all([
     prisma.product.findMany({
       where: { id: { in: [...productIds] }, active: true, category: { active: true } },
-      include: { variants: true, category: { select: { allowsHalf: true } } },
+      include: { variants: true, category: { select: { allowsHalf: true, itemLabel: true } } },
     }),
     prisma.addon.findMany({ where: { id: { in: [...addonIds] }, active: true } }),
   ]);
@@ -78,6 +79,7 @@ export async function priceOrderItems(items: OrderItemInput[]): Promise<{ lines:
 
     return {
       productId: product.id,
+      categoryLabel: product.category.itemLabel ?? null,
       productName: product.name,
       halfProductId: half?.id ?? null,
       halfProductName: half?.name ?? null,

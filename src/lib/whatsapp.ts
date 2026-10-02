@@ -1,11 +1,13 @@
 import { formatBRL } from "./money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "./labels";
+import { itemTitle } from "./item-title";
 import type { OrderTypeValue, PaymentMethodValue } from "@/types/order";
 
 export type MessageItem = {
   quantity: number;
   productName: string;
   halfProductName?: string | null;
+  categoryLabel?: string | null;
   variantName?: string | null;
   addonNames: string[];
   notes?: string | null;
@@ -44,7 +46,7 @@ export function buildOrderMessage(o: MessageOrder): string {
   if (o.address) lines.push(`Endereço: ${o.address}`);
   lines.push("");
   for (const item of o.items) {
-    const name = item.halfProductName ? `1/2 ${item.productName} + 1/2 ${item.halfProductName}` : item.productName;
+    const name = itemTitle(item);
     lines.push(`${item.quantity}x ${name}${item.variantName ? ` (${item.variantName})` : ""} — ${formatBRL(item.totalPrice)}`);
     if (item.addonNames.length) lines.push(`   + ${item.addonNames.join(", ")}`);
     if (item.notes) lines.push(`   Obs: ${item.notes}`);

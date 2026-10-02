@@ -53,6 +53,7 @@ export function ProductModal({ product, category, onAdd, onClose }: Props) {
       variantName: variant?.name,
       halfProductId: halfProduct?.id,
       halfProductName: halfProduct?.name,
+      categoryLabel: category.itemLabel ?? undefined,
       addonIds,
       addonNames: addons.map((a) => a.name),
       quantity,

@@ -35,6 +35,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
       quantity: i.quantity,
       productName: i.productName,
       halfProductName: i.halfProductName,
+      categoryLabel: i.categoryLabel,
       variantName: i.variantName,
       addons: Array.isArray(i.addons) ? i.addons.map((a) => String((a as { name?: unknown })?.name ?? "")) : [],
       totalPrice: i.totalPrice,
