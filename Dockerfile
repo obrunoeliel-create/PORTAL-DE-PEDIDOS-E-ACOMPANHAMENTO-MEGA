@@ -1,9 +1,9 @@
 # OrderFlow OS — imagem de produção (Render, ou qualquer host com Docker)
-# Node 18 (>= 18.18, exigido pelo Next.js 15 e pelo Prisma 6).
+# Node 24 (LTS ativa).
 # Debian slim em vez de Alpine: o Prisma precisa de OpenSSL e glibc.
 
 # ---------- 1) Dependências ----------
-FROM node:18-bookworm-slim AS deps
+FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -21,7 +21,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate && npm run build
 
 # ---------- 3) Runtime ----------
-FROM node:18-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
