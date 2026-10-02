@@ -6,7 +6,7 @@ const id = z.string().cuid("ID inválido.");
 /** Texto livre: limita tamanho bruto, sanitiza e valida o resultado. */
 const text = (min: number, max: number) =>
   z
-    .string({ invalid_type_error: "Texto inválido." })
+    .string({ invalid_type_error: "Texto inválido.", required_error: "Campo obrigatório." })
     .max(max * 2, `Máximo de ${max} caracteres.`)
     .transform(sanitizeText)
     .pipe(z.string().min(min, "Campo obrigatório.").max(max, `Máximo de ${max} caracteres.`));
@@ -21,6 +21,16 @@ const phone = z
   .max(30)
   .transform((v) => v.replace(/\D/g, ""))
   .pipe(z.string().min(10, "Telefone inválido.").max(13, "Telefone inválido."));
+
+/** WhatsApp do cliente: celular brasileiro com DDD (11 dígitos, 9 na frente). Aceita +55 e máscara. */
+const whatsappPhone = z
+  .string({ required_error: "Informe seu WhatsApp com DDD." })
+  .max(30)
+  .transform((v) => v.replace(/\D/g, "").replace(/^55(?=\d{11}$)/, ""))
+  .pipe(z.string().regex(/^[1-9][1-9]9\d{8}$/, "Informe um WhatsApp válido com DDD. Ex: (11) 91234-5678"));
+
+/** Nome do cliente: obrigatório, com pelo menos 2 letras. */
+const customerName = text(2, 80).refine((v) => (v.match(/\p{L}/gu) ?? []).length >= 2, "Informe seu nome.");
 
 const cents = z.number().int().min(0).max(1_000_000); // até R$ 10.000,00
 
@@ -37,17 +47,19 @@ export const orderItemSchema = z
 
 const addressSchema = z
   .object({
-    street: text(3, 120),
+    street: text(3, 120).refine((v) => /\p{L}/u.test(v), "Informe o nome da rua."),
     number: text(1, 15),
     district: text(2, 80),
     complement: optionalText(80),
     reference: optionalText(120),
+    // Bairro escolhido na lista de taxas; ausente = "outro bairro" (taxa definida pela loja)
+    zoneId: id.optional(),
   })
   .strict();
 
 const baseOrder = {
-  customerName: text(2, 80),
-  customerPhone: phone,
+  customerName,
+  customerPhone: whatsappPhone,
   notes: optionalText(280),
   items: z.array(orderItemSchema).min(1, "Carrinho vazio.").max(50),
 };
@@ -96,6 +108,13 @@ export const createDriverSchema = z.object({ name: text(2, 60), phone }).strict(
 export const toggleProductSchema = z.object({ active: z.boolean() }).strict();
 
 export const cuidParam = id;
+
+/** Taxas de entrega por bairro (portal do gerente). */
+export const deliveryZoneSchema = z.object({ name: text(2, 80), fee: z.number().int().min(0).max(20_000) }).strict();
+export const deliveryZoneUpdateSchema = z
+  .object({ name: text(2, 80).optional(), fee: z.number().int().min(0).max(20_000).optional(), active: z.boolean().optional() })
+  .strict();
+export const deliveryZoneImportSchema = z.object({ text: z.string().min(1).max(20_000) }).strict();
 
 /** Loja troca a mesa de um pedido pelo portal. */
 export const changeTableSchema = z.object({ tableNumber: z.number().int().min(1).max(999) }).strict();

@@ -2,7 +2,7 @@
 
 import { useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
-import type { CartItem, OrderMode, PublicSettings } from "@/types/menu";
+import type { CartItem, DeliveryZoneOption, OrderMode, PublicSettings } from "@/types/menu";
 import type { PaymentMethodValue } from "@/types/order";
 import { formatBRL, parseBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
@@ -17,9 +17,33 @@ type Props = {
   /** Ausente quando a mesa veio do QR Code (travada). */
   onChangeMode?: () => void;
   settings: PublicSettings;
+  /** Bairros atendidos com a taxa (vazio = cliente digita o bairro e a loja define a taxa). */
+  zones: DeliveryZoneOption[];
   onClose: () => void;
   onOrderPlaced?: (order: { number: number; token: string }) => void;
 };
+
+const OTHER_ZONE = "__outro__";
+
+/** "11912345678" → "(11) 91234-5678" enquanto o cliente digita. */
+function maskPhone(v: string): string {
+  const d = v.replace(/\D/g, "").replace(/^55(?=\d{11})/, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1 block text-xs font-semibold text-stone-600">
+        {label} {required && <span className="text-brand-600">*</span>}
+      </label>
+      {children}
+      {error && <p className="mt-1 text-xs font-medium text-brand-700">{error}</p>}
+    </div>
+  );
+}
 
 type OrderResult = {
   number: number;
@@ -34,7 +58,7 @@ type OrderResult = {
 /** Último pedido feito neste navegador — o cardápio mostra o atalho "Acompanhar pedido". */
 export const LAST_ORDER_KEY = "orderflow:lastOrder:v1";
 
-export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClose, onOrderPlaced }: Props) {
+export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones, onClose, onOrderPlaced }: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState({ street: "", number: "", district: "", complement: "", reference: "" });
@@ -47,11 +71,36 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const [result, setResult] = useState<OrderResult | null>(null);
+  const [zoneId, setZoneId] = useState("");
 
+  const zone = zones.find((z) => z.id === zoneId) ?? null;
   const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-  // Delivery: a taxa é definida pela loja depois do pedido (null = a definir).
-  const deliveryFee = mode?.type === "DELIVERY" ? null : 0;
-  const total = subtotal;
+  // Delivery: taxa do bairro escolhido; sem bairro da lista, a loja define depois (null = a definir).
+  // Valor só de exibição: o servidor sempre busca a taxa no cadastro.
+  const deliveryFee = mode?.type === "DELIVERY" ? (zone ? zone.fee : null) : 0;
+  const total = subtotal + (deliveryFee ?? 0);
+  const district = zone ? zone.name : address.district;
+
+  const clearErr = (field: string) =>
+    fieldErrors[field] && setFieldErrors(({ [field]: _removed, ...rest }) => rest);
+
+  const inputCls = (field: string) =>
+    `input ${fieldErrors[field] ? "border-brand-500 ring-4 ring-brand-100" : ""}`;
+
+  /** Mesmas regras do servidor, para avisar no campo antes de enviar. */
+  function validate(): Record<string, string> {
+    const errs: Record<string, string> = {};
+    if ((name.match(/\p{L}/gu) ?? []).length < 2) errs.customerName = "Informe seu nome.";
+    const digits = phone.replace(/\D/g, "").replace(/^55(?=\d{11}$)/, "");
+    if (!/^[1-9][1-9]9\d{8}$/.test(digits)) errs.customerPhone = "Informe um WhatsApp válido com DDD. Ex: (11) 91234-5678";
+    if (mode?.type === "DELIVERY") {
+      if (zones.length > 0 && !zoneId) errs["address.zoneId"] = "Selecione seu bairro.";
+      if ((zones.length === 0 || zoneId === OTHER_ZONE) && address.district.trim().length < 2) errs["address.district"] = "Informe seu bairro.";
+      if (address.street.trim().length < 3 || !/\p{L}/u.test(address.street)) errs["address.street"] = "Informe a rua.";
+      if (!address.number.trim()) errs["address.number"] = "Informe o número.";
+    }
+    return errs;
+  }
   const changeCents = changeFor ? parseBRL(changeFor) : null;
   const changeValue = changeCents !== null ? changeCents - total : null;
 
@@ -74,7 +123,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
       tableNumber: mode.type === "TABLE" ? mode.tableNumber : null,
       customerName: name,
       customerPhone: phone,
-      address: mode.type === "DELIVERY" ? formatAddress(address) : null,
+      address: mode.type === "DELIVERY" ? formatAddress({ ...address, district }) : null,
       paymentMethod: mode.type === "TABLE" ? "ON_SITE" : payment,
       changeFor: mode.type !== "TABLE" && payment === "CASH" ? changeCents : null,
       items: cart.map((i) => ({ ...i, totalPrice: i.unitPrice * i.quantity })),
@@ -90,6 +139,20 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!mode) return onChangeMode?.();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setError("Preencha os campos obrigatórios destacados.");
+      const order = ["customerName", "customerPhone", "address.zoneId", "address.district", "address.street", "address.number"];
+      const ids: Record<string, string> = { "address.zoneId": "f-zone", "address.district": "f-district", "address.street": "f-street", "address.number": "f-number" };
+      const first = order.find((k) => errs[k]);
+      if (first) {
+        const el = document.getElementById(ids[first] ?? `f-${first}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.focus({ preventScroll: true });
+      }
+      return;
+    }
     if (mode.type !== "TABLE" && payment === "CASH" && changeFor && (changeCents === null || changeCents < total)) {
       setFieldErrors({ changeFor: "O valor para troco deve ser maior ou igual ao total." });
       return;
@@ -107,7 +170,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
         address: {
           street: address.street,
           number: address.number,
-          district: address.district,
+          district,
+          zoneId: zone?.id,
           complement: address.complement || undefined,
           reference: address.reference || undefined,
         },
@@ -292,15 +356,36 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
           </Card>
 
           <Card title="Seus dados">
-            <div className="space-y-2.5">
-              <div>
-                <input className="input" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required autoComplete="name" />
-                {err("customerName")}
-              </div>
-              <div>
-                <input className="input" placeholder="WhatsApp com DDD" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} inputMode="tel" required autoComplete="tel" />
-                {err("customerPhone")}
-              </div>
+            <div className="space-y-3">
+              <Field id="f-customerName" label="Nome" required error={fieldErrors.customerName}>
+                <input
+                  id="f-customerName"
+                  className={inputCls("customerName")}
+                  placeholder="Seu nome"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    clearErr("customerName");
+                  }}
+                  maxLength={80}
+                  autoComplete="name"
+                />
+              </Field>
+              <Field id="f-customerPhone" label="WhatsApp com DDD" required error={fieldErrors.customerPhone}>
+                <input
+                  id="f-customerPhone"
+                  className={inputCls("customerPhone")}
+                  placeholder="(11) 91234-5678"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(maskPhone(e.target.value));
+                    clearErr("customerPhone");
+                  }}
+                  maxLength={16}
+                  inputMode="tel"
+                  autoComplete="tel"
+                />
+              </Field>
               {mode && mode.type !== "TABLE" && (
                 <label
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition ${
@@ -327,16 +412,82 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
 
           {mode?.type === "DELIVERY" && (
             <Card title="Endereço de entrega">
-              <div className="space-y-2.5">
-                <div className="grid grid-cols-[1fr_5.5rem] gap-2">
-                  <input className="input" placeholder="Rua" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} maxLength={120} required autoComplete="address-line1" />
-                  <input className="input" placeholder="Nº" value={address.number} onChange={(e) => setAddress({ ...address, number: e.target.value })} maxLength={15} required />
+              <div className="space-y-3">
+                {zones.length > 0 && (
+                  <Field id="f-zone" label="Bairro" required error={fieldErrors["address.zoneId"]}>
+                    <select
+                      id="f-zone"
+                      className={inputCls("address.zoneId")}
+                      value={zoneId}
+                      onChange={(e) => {
+                        setZoneId(e.target.value);
+                        clearErr("address.zoneId");
+                      }}
+                    >
+                      <option value="">Selecione seu bairro</option>
+                      {zones.map((z) => (
+                        <option key={z.id} value={z.id}>
+                          {z.name} — taxa {formatBRL(z.fee)}
+                        </option>
+                      ))}
+                      <option value={OTHER_ZONE}>Meu bairro não está na lista</option>
+                    </select>
+                    {zone && (
+                      <p className="mt-1.5 text-sm font-semibold text-emerald-700">🛵 Taxa de entrega: {formatBRL(zone.fee)}</p>
+                    )}
+                  </Field>
+                )}
+                {(zones.length === 0 || zoneId === OTHER_ZONE) && (
+                  <Field id="f-district" label={zones.length ? "Nome do bairro" : "Bairro"} required error={fieldErrors["address.district"]}>
+                    <input
+                      id="f-district"
+                      className={inputCls("address.district")}
+                      placeholder="Seu bairro"
+                      value={address.district}
+                      onChange={(e) => {
+                        setAddress({ ...address, district: e.target.value });
+                        clearErr("address.district");
+                      }}
+                      maxLength={80}
+                    />
+                    <p className="mt-1.5 text-xs text-stone-500">A loja confirma a taxa de entrega para o seu bairro.</p>
+                  </Field>
+                )}
+                <div className="grid grid-cols-[1fr_6rem] gap-2">
+                  <Field id="f-street" label="Rua" required error={fieldErrors["address.street"]}>
+                    <input
+                      id="f-street"
+                      className={inputCls("address.street")}
+                      placeholder="Nome da rua"
+                      value={address.street}
+                      onChange={(e) => {
+                        setAddress({ ...address, street: e.target.value });
+                        clearErr("address.street");
+                      }}
+                      maxLength={120}
+                      autoComplete="address-line1"
+                    />
+                  </Field>
+                  <Field id="f-number" label="Nº" required error={fieldErrors["address.number"]}>
+                    <input
+                      id="f-number"
+                      className={inputCls("address.number")}
+                      placeholder="123"
+                      value={address.number}
+                      onChange={(e) => {
+                        setAddress({ ...address, number: e.target.value });
+                        clearErr("address.number");
+                      }}
+                      maxLength={15}
+                    />
+                  </Field>
                 </div>
-                {err("address.street")}
-                <input className="input" placeholder="Bairro" value={address.district} onChange={(e) => setAddress({ ...address, district: e.target.value })} maxLength={80} required />
-                {err("address.district")}
-                <input className="input" placeholder="Complemento (opcional)" value={address.complement} onChange={(e) => setAddress({ ...address, complement: e.target.value })} maxLength={80} />
-                <input className="input" placeholder="Ponto de referência (opcional)" value={address.reference} onChange={(e) => setAddress({ ...address, reference: e.target.value })} maxLength={120} />
+                <Field id="f-complement" label="Complemento (opcional)">
+                  <input id="f-complement" className="input" placeholder="Apto, bloco, casa 2..." value={address.complement} onChange={(e) => setAddress({ ...address, complement: e.target.value })} maxLength={80} />
+                </Field>
+                <Field id="f-reference" label="Ponto de referência (opcional)">
+                  <input id="f-reference" className="input" placeholder="Perto de..." value={address.reference} onChange={(e) => setAddress({ ...address, reference: e.target.value })} maxLength={120} />
+                </Field>
               </div>
             </Card>
           )}
@@ -373,7 +524,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
                 <input className="input" placeholder="Troco para quanto? (opcional)" value={changeFor} onChange={(e) => setChangeFor(e.target.value)} inputMode="decimal" maxLength={10} />
                 {changeValue !== null && changeValue >= 0 && (
                   <p className="mt-1.5 text-sm font-medium text-green-700">
-                    {mode?.type === "DELIVERY"
+                    {mode?.type === "DELIVERY" && deliveryFee === null
                       ? `Troco sem contar a taxa de entrega: ${formatBRL(changeValue)}`
                       : `Seu troco: ${formatBRL(changeValue)}`}
                   </p>
@@ -399,8 +550,13 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
 
         <div className="space-y-2 border-t border-stone-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm">
           <Row label="Subtotal" value={formatBRL(subtotal)} />
-          {mode?.type === "DELIVERY" && <Row label="Taxa de entrega" value="a definir pela loja" />}
-          <Row label={mode?.type === "DELIVERY" ? "Total (sem a taxa)" : "Total"} value={formatBRL(total)} bold />
+          {mode?.type === "DELIVERY" && (
+            <Row
+              label="Taxa de entrega"
+              value={deliveryFee !== null ? formatBRL(deliveryFee) : zones.length && !zoneId ? "escolha o bairro" : "a definir pela loja"}
+            />
+          )}
+          <Row label={mode?.type === "DELIVERY" && deliveryFee === null ? "Total (sem a taxa)" : "Total"} value={formatBRL(total)} bold />
           {error && (
             <p className="rounded-xl bg-brand-50 p-3 font-medium text-brand-800" role="alert">
               {error}

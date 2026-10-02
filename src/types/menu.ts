@@ -21,6 +21,9 @@ export type MenuCategory = {
   addons: MenuAddon[];
 };
 
+/** Bairro atendido no delivery, com a taxa (centavos). */
+export type DeliveryZoneOption = { id: string; name: string; fee: number };
+
 export type PublicSettings = {
   storeName: string;
   isOpen: boolean;

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
 import { MenuApp } from "@/components/client/MenuApp";
 import { verifyTableToken } from "@/lib/tables";
+import { listZones } from "@/lib/delivery-zones";
 import type { MenuCategory, PublicSettings } from "@/types/menu";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const initialTable = tableValid && tableNumber !== null ? { number: tableNumber, token: t as string } : null;
   const tableQrInvalid = mesa !== undefined && !tableValid;
 
-  const [categories, settings] = await Promise.all([
+  const [categories, settings, zones] = await Promise.all([
     prisma.category.findMany({
       where: { active: true },
       orderBy: { sortOrder: "asc" },
@@ -40,6 +41,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
       },
     }),
     getStoreSettings(),
+    listZones(true),
   ]);
 
   const menu: MenuCategory[] = categories.filter((c) => c.products.length > 0);
@@ -51,5 +53,5 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
     pixEnabled: !!settings.pixKey,
   };
 
-  return <MenuApp categories={menu} settings={publicSettings} initialTable={initialTable} tableQrInvalid={tableQrInvalid} />;
+  return <MenuApp categories={menu} settings={publicSettings} initialTable={initialTable} tableQrInvalid={tableQrInvalid} zones={zones.map(({ id, name, fee }) => ({ id, name, fee }))} />;
 }

@@ -56,9 +56,22 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  // Delivery: a taxa é definida depois pelo operador (null = a definir). Balcão e mesa não têm taxa.
-  const deliveryFee = input.type === "DELIVERY" ? null : 0;
-  const total = priced.subtotal;
+  // Delivery: taxa do bairro escolhido (sempre lida do banco). Sem bairro da lista = taxa a definir
+  // pela loja (null). Balcão e mesa não têm taxa.
+  let deliveryFee: number | null = input.type === "DELIVERY" ? null : 0;
+  let district = input.type === "DELIVERY" ? input.address.district : null;
+  if (input.type === "DELIVERY" && input.address.zoneId) {
+    const zone = await prisma.deliveryZone.findFirst({ where: { id: input.address.zoneId, active: true } });
+    if (!zone) {
+      return NextResponse.json(
+        { error: "Esse bairro não está mais disponível. Escolha o bairro novamente.", fields: { "address.zoneId": "Bairro indisponível." } },
+        { status: 422 },
+      );
+    }
+    deliveryFee = zone.fee;
+    district = zone.name;
+  }
+  const total = priced.subtotal + (deliveryFee ?? 0);
 
   // Mesa paga no caixa (presencial); delivery e balcão usam a forma escolhida pelo cliente.
   const paymentMethod = input.type === "TABLE" ? "ON_SITE" : input.paymentMethod;
@@ -78,7 +91,7 @@ export async function POST(req: Request) {
       ...(input.type === "DELIVERY" && {
         addressStreet: input.address.street,
         addressNumber: input.address.number,
-        addressDistrict: input.address.district,
+        addressDistrict: district,
         addressComplement: input.address.complement ?? null,
         addressReference: input.address.reference ?? null,
       }),

@@ -199,3 +199,14 @@ model DiningTable {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Bairros atendidos no delivery e a taxa de cada um (em centavos).
+// No checkout o cliente escolhe o bairro e a taxa entra automaticamente; bairro fora da lista = taxa a definir.
+model DeliveryZone {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  fee       Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

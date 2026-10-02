@@ -13,6 +13,7 @@ const NAV = [
   { href: "/admin/cardapio", label: "Cardápio", icon: "📋", managerOnly: false },
   { href: "/admin/financeiro", label: "Financeiro", icon: "💰", managerOnly: true },
   { href: "/admin/mesas", label: "Mesas", icon: "🪑", managerOnly: true },
+  { href: "/admin/taxas", label: "Taxas", icon: "📍", managerOnly: true },
 ];
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {

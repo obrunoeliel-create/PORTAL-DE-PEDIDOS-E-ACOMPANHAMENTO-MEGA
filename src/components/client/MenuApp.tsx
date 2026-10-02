@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { CartItem, MenuCategory, MenuProduct, OrderMode, PublicSettings } from "@/types/menu";
+import type { CartItem, DeliveryZoneOption, MenuCategory, MenuProduct, OrderMode, PublicSettings } from "@/types/menu";
 import { formatBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL } from "@/lib/labels";
 import { buildWhatsAppUrl, formatPhone } from "@/lib/whatsapp";
@@ -28,9 +28,10 @@ type Props = {
   /** Mesa vinda do QR Code (já validada no servidor). */
   initialTable: { number: number; token: string } | null;
   tableQrInvalid: boolean;
+  zones: DeliveryZoneOption[];
 };
 
-export function MenuApp({ categories, settings, initialTable, tableQrInvalid }: Props) {
+export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zones }: Props) {
   const [mode, setMode] = useState<OrderMode | null>(
     initialTable ? { type: "TABLE", tableNumber: initialTable.number, tableToken: initialTable.token } : null,
   );
@@ -337,6 +338,7 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid }: 
           mode={mode}
           onChangeMode={tableLocked ? undefined : () => setModeOpen(true)}
           settings={settings}
+          zones={zones}
           onClose={() => setCartOpen(false)}
           onOrderPlaced={setLastOrder}
         />
