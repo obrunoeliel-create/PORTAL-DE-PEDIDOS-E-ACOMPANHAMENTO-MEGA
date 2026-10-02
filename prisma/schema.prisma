@@ -1,0 +1,181 @@
+// OrderFlow OS — modelo de dados
+// Todos os valores monetários são armazenados em CENTAVOS (Int) para evitar erros de ponto flutuante.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  OPERATOR
+}
+
+enum OrderType {
+  DELIVERY
+  PICKUP
+  TABLE
+}
+
+enum OrderStatus {
+  PENDING          // Aguardando aceite
+  PREPARING        // Em preparo
+  OUT_FOR_DELIVERY // Saiu para entrega / Pronto (balcão e mesa)
+  COMPLETED        // Concluído
+  CANCELED
+}
+
+enum PaymentMethod {
+  PIX
+  CARD
+  CASH
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(OPERATOR)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  sortOrder  Int       @default(0)
+  // Permite pizza 1/2 a 1/2 entre produtos desta categoria
+  allowsHalf Boolean   @default(false)
+  active     Boolean   @default(true)
+  products   Product[]
+  addons     Addon[]
+}
+
+model Product {
+  id          String           @id @default(cuid())
+  categoryId  String
+  category    Category         @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  // Preço base em centavos — usado quando o produto não tem variações (tamanhos)
+  price       Int              @default(0)
+  active      Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  variants    ProductVariant[]
+  orderItems  OrderItem[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([categoryId, name])
+  @@index([categoryId, active])
+}
+
+// Tamanhos (ex: Grande | Broto). O nome é a chave usada para casar sabores no 1/2 a 1/2.
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  price     Int
+  sortOrder Int     @default(0)
+
+  @@unique([productId, name])
+}
+
+// Acréscimos disponíveis para todos os produtos de uma categoria
+model Addon {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  name       String
+  price      Int
+  active     Boolean  @default(true)
+
+  @@unique([categoryId, name])
+}
+
+model Driver {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  active    Boolean  @default(true)
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id                String        @id @default(cuid())
+  number            Int           @unique @default(autoincrement())
+  // Token aleatório (não sequencial) do link "Acompanhe seu pedido" enviado ao cliente
+  trackingToken     String        @unique
+  type              OrderType
+  status            OrderStatus   @default(PENDING)
+  customerName      String
+  customerPhone     String
+  tableNumber       Int?
+  addressStreet     String?
+  addressNumber     String?
+  addressDistrict   String?
+  addressComplement String?
+  addressReference  String?
+  paymentMethod     PaymentMethod
+  changeFor         Int?
+  subtotal          Int
+  // null = taxa de entrega ainda não definida pelo operador
+  deliveryFee       Int?
+  total             Int
+  notes             String?
+  driverId          String?
+  driver            Driver?       @relation(fields: [driverId], references: [id])
+  items             OrderItem[]
+  acceptedAt        DateTime?
+  dispatchedAt      DateTime?
+  completedAt       DateTime?
+  canceledAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Snapshot dos nomes/preços no momento da compra: alterações futuras no cardápio não afetam pedidos antigos.
+model OrderItem {
+  id              String  @id @default(cuid())
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product @relation(fields: [productId], references: [id])
+  productName     String
+  halfProductId   String?
+  halfProductName String?
+  variantName     String?
+  // [{ "name": "Catupiry", "price": 400 }]
+  addons          Json    @default("[]")
+  unitPrice       Int
+  quantity        Int
+  totalPrice      Int
+  notes           String?
+
+  @@index([orderId])
+}
+
+model StoreSettings {
+  id              Int      @id @default(1)
+  storeName       String
+  isOpen          Boolean  @default(true)
+  pixKey          String?
+  pixMerchantName String?
+  pixMerchantCity String?
+  // Nome do titular exibido ao cliente (com acentos), ex: "Maria Brandão / A Mega Esfiha"
+  pixHolderName   String?
+  whatsappNumber  String?
+  updatedAt       DateTime @updatedAt
+}
