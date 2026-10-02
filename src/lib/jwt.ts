@@ -62,18 +62,28 @@ export function readCookie(header: string | undefined, name: string): string | u
 }
 
 /** APP_ORIGIN aceita uma ou mais origens separadas por vírgula; sem esquema, assume https://. */
-function configuredOrigins(): string[] {
-  return (process.env.APP_ORIGIN ?? "")
-    .split(",")
-    .map((s) => s.trim().replace(/\/+$/, ""))
-    .filter(Boolean)
-    .flatMap((s) => {
-      try {
-        return [new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`).origin];
-      } catch {
-        return [];
-      }
-    });
+export function configuredOrigins(): string[] {
+  const raw = process.env.APP_ORIGIN ?? "";
+  // Tolera valores colados como link Markdown "[https://x](https://x)" ou com espaços/aspas:
+  // extrai os endereços http(s) de verdade; sem esquema, assume https://.
+  const found = raw.match(/https?:\/\/[^\s,\[\]()<>"']+/gi);
+  const candidates = found?.length
+    ? found
+    : raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => `https://${s}`);
+  const origins = new Set<string>();
+  for (const c of candidates) {
+    try {
+      const url = new URL(c.replace(/\/+$/, ""));
+      if (url.hostname.includes(".") || url.hostname === "localhost") origins.add(url.origin);
+    } catch {
+      /* valor inválido: ignorado */
+    }
+  }
+  return [...origins];
 }
 
 const firstHeaderValue = (v: string | string[] | null | undefined) =>

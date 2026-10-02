@@ -1,11 +1,10 @@
 import "server-only";
 import { headers } from "next/headers";
+import { configuredOrigins } from "./jwt";
 
-/** Primeira origem configurada em APP_ORIGIN (aceita sem esquema; assume https). */
+/** Primeira origem válida do APP_ORIGIN (mesma interpretação da checagem anti-CSRF). */
 export function configuredPublicUrl(): string {
-  const first = (process.env.APP_ORIGIN ?? "").split(",")[0]?.trim().replace(/\/+$/, "");
-  if (!first) return "";
-  return /^https?:\/\//i.test(first) ? first : `https://${first}`;
+  return configuredOrigins()[0] ?? "";
 }
 
 /** URL pública do site: APP_ORIGIN, ou o host da requisição atual (páginas do servidor). */
