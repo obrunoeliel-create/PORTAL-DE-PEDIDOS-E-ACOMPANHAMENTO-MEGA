@@ -61,15 +61,49 @@ export function readCookie(header: string | undefined, name: string): string | u
   return undefined;
 }
 
-/** Checagem anti-CSRF / Cross-Site WebSocket Hijacking: a origem precisa ser a própria aplicação. */
-export function isAllowedOrigin(origin: string | null | undefined, host: string | null | undefined): boolean {
+/** APP_ORIGIN aceita uma ou mais origens separadas por vírgula; sem esquema, assume https://. */
+function configuredOrigins(): string[] {
+  return (process.env.APP_ORIGIN ?? "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/+$/, ""))
+    .filter(Boolean)
+    .flatMap((s) => {
+      try {
+        return [new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`).origin];
+      } catch {
+        return [];
+      }
+    });
+}
+
+const firstHeaderValue = (v: string | string[] | null | undefined) =>
+  (Array.isArray(v) ? v[0] : v)?.split(",")[0]?.trim() || undefined;
+
+/**
+ * Checagem anti-CSRF / Cross-Site WebSocket Hijacking: a origem precisa ser a própria aplicação.
+ * Aceita se o Origin bater com APP_ORIGIN, com o Host, ou — atrás de proxy confiável (TRUST_PROXY=true) —
+ * com o X-Forwarded-Host. O navegador da vítima não deixa um site atacante forjar o Origin.
+ */
+export function isAllowedOrigin(
+  origin: string | null | undefined,
+  host: string | string[] | null | undefined,
+  forwardedHost?: string | string[] | null,
+): boolean {
   if (!origin) return false;
+  let url: URL;
   try {
-    const url = new URL(origin);
-    const configured = process.env.APP_ORIGIN;
-    if (configured) return url.origin === new URL(configured).origin;
-    return !!host && url.host === host;
+    url = new URL(origin);
   } catch {
     return false;
   }
+  if (configuredOrigins().includes(url.origin)) return true;
+  const hosts = [firstHeaderValue(host)];
+  if (process.env.TRUST_PROXY === "true") hosts.push(firstHeaderValue(forwardedHost));
+  if (hosts.some((h) => h && h.toLowerCase() === url.host.toLowerCase())) return true;
+
+  console.warn(
+    `[csrf] Origem recusada: origin=${url.origin} host=${hosts.filter(Boolean).join("|") || "-"} ` +
+      `APP_ORIGIN=${configuredOrigins().join("|") || "(vazio)"}`,
+  );
+  return false;
 }

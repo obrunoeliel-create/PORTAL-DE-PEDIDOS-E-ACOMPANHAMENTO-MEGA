@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
 
   // Anti-CSRF (defesa extra além do SameSite=Strict): toda mutação na API exige Origin da própria app.
   if (pathname.startsWith("/api/") && !SAFE_METHODS.has(req.method)) {
-    if (!isAllowedOrigin(req.headers.get("origin"), req.headers.get("host"))) {
+    if (!isAllowedOrigin(req.headers.get("origin"), req.headers.get("host"), req.headers.get("x-forwarded-host"))) {
       return NextResponse.json({ error: "Origem não permitida." }, { status: 403 });
     }
   }
