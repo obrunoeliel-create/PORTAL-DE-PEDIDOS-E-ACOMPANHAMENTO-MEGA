@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:seed-tables": "tsx prisma/seed-tables.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

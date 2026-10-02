@@ -5,6 +5,7 @@ import { cuidParam, updateStatusSchema } from "@/lib/validators";
 import { PayloadError, jsonError, readJson, validationError } from "@/lib/http";
 import { STATUS_TRANSITIONS, orderInclude, statusTimestamp, toBoardOrder } from "@/lib/orders";
 import { emitToStaff } from "@/lib/socket-server";
+import { notifyStatusChange } from "@/lib/order-notify";
 
 export const runtime = "nodejs";
 
@@ -47,5 +48,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const order = toBoardOrder(await prisma.order.findUniqueOrThrow({ where: { id: id.data }, include: orderInclude }));
   emitToStaff("order:updated", order);
+  // WhatsApp automático em segundo plano: não atrasa o operador; o resultado chega ao painel via socket.
+  void notifyStatusChange(id.data, next);
   return NextResponse.json({ order });
 }

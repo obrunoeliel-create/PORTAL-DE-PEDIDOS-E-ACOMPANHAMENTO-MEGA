@@ -67,6 +67,34 @@ Produção: `npm run build && npm start` (atrás de HTTPS; com proxy reverso, de
 
 Em balcão e mesa não há taxa, então o QR Code PIX aparece logo depois do pedido.
 
+## Pedidos na mesa (QR Code)
+
+- Pedido na mesa **só pelo QR Code** que fica na mesa: `/?mesa=N&t=<chave>`. A chave é única por mesa e conferida no servidor; sem ela não existe a opção "mesa".
+- A mesa fica **travada** para o cliente. Só a loja troca a mesa de um pedido (card do pedido → "Trocar mesa").
+- Mesa **não tem pagamento online**: o pedido entra como "No caixa (presencial)" e o cliente vê apenas o total.
+- Portal → **Mesas** (gerente): imprime os QR Codes (A4, 4 por folha) e gera um QR novo se algum vazar (o antigo para de funcionar).
+- Criar mesas: `npm run db:seed-tables` (padrão 50; `TABLE_COUNT=60` para mais). Mesas existentes não mudam.
+
+## WhatsApp automático (opt-in)
+
+No checkout de **delivery e balcão** o cliente pode marcar "Quero receber atualizações no WhatsApp". Se marcou, o sistema envia sozinho:
+- quando a loja **aceita** o pedido;
+- quando **sai para entrega** (delivery) ou fica **pronto para retirada** (balcão).
+
+O envio usa a **API oficial do WhatsApp Business (Meta Cloud API)** — o único jeito de enviar sem ninguém clicar. Configuração:
+
+1. Em https://business.facebook.com crie/verifique a empresa e, em https://developers.facebook.com, um app do tipo *Business* com o produto **WhatsApp**.
+2. Cadastre o número da loja (um número que **não** esteja em uso no app WhatsApp comum, ou migre o atual).
+3. Crie um **usuário do sistema** com permissão `whatsapp_business_messaging` e gere um **token permanente** → `WHATSAPP_TOKEN`.
+4. Copie o **Phone number ID** → `WHATSAPP_PHONE_NUMBER_ID`.
+5. Em *Modelos de mensagem*, crie 3 modelos categoria **Utilidade**, idioma **Português (BR)**, com 4 variáveis:
+   - `pedido_aceito`: "Olá, {{1}}! Seu pedido #{{2}} na Mega Esfiha Jurema foi aceito e já está sendo preparado. Total: {{3}}. Acompanhe: {{4}}"
+   - `pedido_saiu_entrega`: "{{1}}, seu pedido #{{2}} saiu para entrega! 🛵 Total: {{3}}. Acompanhe: {{4}}"
+   - `pedido_pronto_retirada`: "{{1}}, seu pedido #{{2}} está pronto para retirada no balcão! Total: {{3}}. Acompanhe: {{4}}"
+6. Coloque as variáveis `WHATSAPP_*` (ver `.env.example`) no Render e faça um novo deploy.
+
+O card do pedido no painel mostra se cada aviso foi enviado (✓) ou o erro da Meta; o botão manual de WhatsApp continua disponível.
+
 ## Estrutura
 
 ```

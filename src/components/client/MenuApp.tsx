@@ -22,13 +22,21 @@ const normalize = (s: string) =>
 
 const MODE_ICON: Record<OrderMode["type"], string> = { DELIVERY: "🛵", PICKUP: "🏪", TABLE: "🍽️" };
 
-type Props = { categories: MenuCategory[]; settings: PublicSettings; initialTable: number | null };
+type Props = {
+  categories: MenuCategory[];
+  settings: PublicSettings;
+  /** Mesa vinda do QR Code (já validada no servidor). */
+  initialTable: { number: number; token: string } | null;
+  tableQrInvalid: boolean;
+};
 
-export function MenuApp({ categories, settings, initialTable }: Props) {
+export function MenuApp({ categories, settings, initialTable, tableQrInvalid }: Props) {
   const [mode, setMode] = useState<OrderMode | null>(
-    initialTable ? { type: "TABLE", tableNumber: initialTable } : null,
+    initialTable ? { type: "TABLE", tableNumber: initialTable.number, tableToken: initialTable.token } : null,
   );
   const [modeOpen, setModeOpen] = useState(!initialTable);
+  // Mesa lida pelo QR Code fica travada: só a loja troca a mesa (pelo portal).
+  const tableLocked = mode?.type === "TABLE";
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState(categories[0]?.id);
   const [selected, setSelected] = useState<MenuProduct | null>(null);
@@ -144,19 +152,24 @@ export function MenuApp({ categories, settings, initialTable }: Props) {
           </div>
 
           <button
-            onClick={() => setModeOpen(true)}
-            className="mt-6 flex w-full items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-left ring-1 ring-white/20 backdrop-blur transition hover:bg-white/15"
+            onClick={() => !tableLocked && setModeOpen(true)}
+            disabled={tableLocked}
+            className="mt-6 flex w-full items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-left ring-1 ring-white/20 backdrop-blur transition enabled:hover:bg-white/15"
           >
             <span className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-mega-400 text-xl text-ink-900">
                 {mode ? MODE_ICON[mode.type] : "📍"}
               </span>
               <span>
-                <span className="block text-xs text-white/70">Como você quer pedir?</span>
-                <span className="block font-semibold">{modeLabel ?? "Escolher: delivery, retirada ou mesa"}</span>
+                <span className="block text-xs text-white/70">{tableLocked ? "Você está pedindo na" : "Como você quer pedir?"}</span>
+                <span className="block font-semibold">{modeLabel ?? "Escolher: delivery ou retirada"}</span>
               </span>
             </span>
-            <span className="text-sm font-medium text-mega-300">Alterar</span>
+            {tableLocked ? (
+              <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">🔒 via QR Code</span>
+            ) : (
+              <span className="text-sm font-medium text-mega-300">Alterar</span>
+            )}
           </button>
         </div>
       </header>
@@ -207,6 +220,14 @@ export function MenuApp({ categories, settings, initialTable }: Props) {
           </nav>
         </div>
       </div>
+
+      {tableQrInvalid && (
+        <div className="mx-auto mt-2 max-w-3xl px-4">
+          <div className="rounded-2xl bg-brand-50 p-4 text-sm font-medium text-brand-800 ring-1 ring-brand-200">
+            ⚠️ Este QR Code de mesa não é válido ou foi substituído. Leia novamente o QR Code da sua mesa ou chame um atendente.
+          </div>
+        </div>
+      )}
 
       {!settings.isOpen && (
         <div className="mx-auto mt-2 max-w-3xl px-4">
@@ -288,7 +309,7 @@ export function MenuApp({ categories, settings, initialTable }: Props) {
         </div>
       )}
 
-      {modeOpen && (
+      {modeOpen && !tableLocked && (
         <ModeSelector
           current={mode}
           storeName={settings.storeName}
@@ -314,7 +335,7 @@ export function MenuApp({ categories, settings, initialTable }: Props) {
           cart={cart}
           setCart={setCart}
           mode={mode}
-          onChangeMode={() => setModeOpen(true)}
+          onChangeMode={tableLocked ? undefined : () => setModeOpen(true)}
           settings={settings}
           onClose={() => setCartOpen(false)}
           onOrderPlaced={setLastOrder}

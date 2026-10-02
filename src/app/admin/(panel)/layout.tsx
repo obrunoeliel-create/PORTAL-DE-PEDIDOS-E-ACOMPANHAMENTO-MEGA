@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/despacho", label: "Despacho", icon: "🛵", managerOnly: false },
   { href: "/admin/cardapio", label: "Cardápio", icon: "📋", managerOnly: false },
   { href: "/admin/financeiro", label: "Financeiro", icon: "💰", managerOnly: true },
+  { href: "/admin/mesas", label: "Mesas", icon: "🪑", managerOnly: true },
 ];
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -19,8 +20,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const items = NAV.filter((n) => !n.managerOnly || user.role === "MANAGER").map(({ managerOnly: _, ...n }) => n);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f4f1ec]">
-      <header className="sticky top-0 z-30 bg-ink-950 text-white shadow-lift">
+    <div className="flex min-h-screen flex-col bg-[#f4f1ec] print:bg-white">
+      <header className="sticky top-0 z-30 bg-ink-950 text-white shadow-lift print:hidden">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Logo size={42} className="ring-2 ring-white/10" />
@@ -44,7 +45,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 sm:p-6">{children}</main>
+      <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 sm:p-6 print:max-w-none print:p-0">{children}</main>
     </div>
   );
 }

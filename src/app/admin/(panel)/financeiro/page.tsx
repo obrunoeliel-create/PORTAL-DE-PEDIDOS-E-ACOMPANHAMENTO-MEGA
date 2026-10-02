@@ -34,7 +34,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const count = totals._count;
   const avgTicket = count ? Math.round(revenue / count) : 0;
 
-  const paymentRows = (["PIX", "CARD", "CASH"] as PaymentMethodValue[]).map((m) => {
+  const paymentRows = (["PIX", "CARD", "CASH", "ON_SITE"] as PaymentMethodValue[]).map((m) => {
     const row = byPayment.find((r) => r.paymentMethod === m);
     return { label: PAYMENT_LABEL[m], total: row?._sum.total ?? 0, count: row?._count ?? 0 };
   });

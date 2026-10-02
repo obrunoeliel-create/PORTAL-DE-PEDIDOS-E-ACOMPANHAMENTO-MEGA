@@ -29,7 +29,8 @@ export type PublicSettings = {
 export type OrderMode =
   | { type: "DELIVERY" }
   | { type: "PICKUP" }
-  | { type: "TABLE"; tableNumber: number };
+  /** Mesa só vem do QR Code (número + token) e fica travada para o cliente. */
+  | { type: "TABLE"; tableNumber: number; tableToken: string };
 
 export type CartItem = {
   key: string;

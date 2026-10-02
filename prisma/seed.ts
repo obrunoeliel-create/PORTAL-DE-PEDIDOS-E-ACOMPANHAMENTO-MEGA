@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 
 const prisma = new PrismaClient();
 
@@ -402,8 +403,17 @@ async function seedAdmin() {
   });
 }
 
+async function seedTables() {
+  const count = Number.parseInt(process.env.TABLE_COUNT ?? "50", 10) || 50;
+  for (let number = 1; number <= count; number++) {
+    const exists = await prisma.diningTable.findUnique({ where: { number } });
+    if (!exists) await prisma.diningTable.create({ data: { number, token: randomBytes(18).toString("base64url") } });
+  }
+}
+
 async function main() {
   await seedMenu();
+  await seedTables();
   await seedSettings();
   await seedAdmin();
   console.log("Seed concluído.");

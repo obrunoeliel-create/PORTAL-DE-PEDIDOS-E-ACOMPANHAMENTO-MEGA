@@ -2,7 +2,7 @@
 
 export type OrderTypeValue = "DELIVERY" | "PICKUP" | "TABLE";
 export type OrderStatusValue = "PENDING" | "PREPARING" | "OUT_FOR_DELIVERY" | "COMPLETED" | "CANCELED";
-export type PaymentMethodValue = "PIX" | "CARD" | "CASH";
+export type PaymentMethodValue = "PIX" | "CARD" | "CASH" | "ON_SITE";
 
 export type BoardOrderItem = {
   id: string;
@@ -37,6 +37,10 @@ export type BoardOrder = {
   deliveryFee: number | null;
   total: number;
   notes: string | null;
+  whatsappUpdates: boolean;
+  waAcceptedAt: string | null;
+  waDispatchedAt: string | null;
+  waError: string | null;
   driverId: string | null;
   driver: { id: string; name: string; phone: string } | null;
   items: BoardOrderItem[];

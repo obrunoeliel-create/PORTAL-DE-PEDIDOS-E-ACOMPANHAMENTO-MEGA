@@ -152,6 +152,18 @@ export function OrderTracker({ token }: { token: string }) {
           </div>
         )}
 
+        {order.paymentMethod === "ON_SITE" && !canceled && order.status !== "COMPLETED" && (
+          <div className="flex gap-3 rounded-2xl bg-mega-100 p-4 text-sm text-ink-900 ring-1 ring-mega-300">
+            <span className="text-2xl" aria-hidden>
+              💰
+            </span>
+            <p>
+              <strong className="block font-display text-base">Pague no caixa antes de sair</strong>
+              Total do seu pedido: <strong>{formatBRL(order.total)}</strong>
+            </p>
+          </div>
+        )}
+
         {order.pix && order.status !== "COMPLETED" && (
           <PixQrCode
             payload={order.pix.payload}

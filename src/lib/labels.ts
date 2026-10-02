@@ -10,6 +10,7 @@ export const PAYMENT_LABEL: Record<PaymentMethodValue, string> = {
   PIX: "PIX",
   CARD: "Cartão (na entrega)",
   CASH: "Dinheiro",
+  ON_SITE: "No caixa (presencial)",
 };
 
 export const STATUS_LABEL: Record<OrderStatusValue, string> = {

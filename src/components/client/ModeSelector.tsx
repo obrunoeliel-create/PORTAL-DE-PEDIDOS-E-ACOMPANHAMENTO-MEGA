@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { OrderMode } from "@/types/menu";
 import { Logo } from "@/components/brand/Logo";
 
@@ -11,12 +10,11 @@ type Props = {
   onClose?: () => void;
 };
 
-export function ModeSelector({ current, storeName, onSelect, onClose }: Props) {
-  const [askTable, setAskTable] = useState(current?.type === "TABLE");
-  const [table, setTable] = useState(current?.type === "TABLE" ? String(current.tableNumber) : "");
-  const tableNumber = Number(table);
-  const tableValid = /^\d{1,3}$/.test(table) && tableNumber >= 1;
-
+/**
+ * Escolha entre delivery e retirada. Pedido na mesa NÃO é escolhido aqui:
+ * só é possível lendo o QR Code que fica na mesa (que já traz o número travado).
+ */
+export function ModeSelector({ storeName, onSelect, onClose }: Props) {
   return (
     <div className="overlay" role="dialog" aria-modal>
       <div className="sheet relative w-full max-w-md overflow-hidden">
@@ -37,45 +35,20 @@ export function ModeSelector({ current, storeName, onSelect, onClose }: Props) {
         </div>
 
         <div className="-mt-5 rounded-t-3xl bg-white p-6">
-          {!askTable ? (
-            <>
-              <h3 className="mb-4 text-center text-lg font-bold">Como você quer pedir?</h3>
-              <div className="grid gap-3">
-                <ModeButton icon="🛵" title="Delivery" subtitle="Receba no seu endereço" onClick={() => onSelect({ type: "DELIVERY" })} />
-                <ModeButton icon="🏪" title="Retirada no balcão" subtitle="Peça e busque na loja" onClick={() => onSelect({ type: "PICKUP" })} />
-                <ModeButton icon="🍽️" title="Pedido na mesa" subtitle="Estou no salão" onClick={() => setAskTable(true)} />
-              </div>
-            </>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (tableValid) onSelect({ type: "TABLE", tableNumber });
-              }}
-              className="space-y-4"
-            >
-              <label className="block text-center text-lg font-bold" htmlFor="table">
-                Qual é o número da sua mesa?
-              </label>
-              <input
-                id="table"
-                inputMode="numeric"
-                autoFocus
-                value={table}
-                onChange={(e) => setTable(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                className="input py-4 text-center font-display text-4xl font-extrabold"
-                placeholder="12"
-              />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setAskTable(false)} className="btn-ghost flex-1 py-3">
-                  Voltar
-                </button>
-                <button type="submit" disabled={!tableValid} className="btn-primary flex-1 py-3">
-                  Confirmar mesa
-                </button>
-              </div>
-            </form>
-          )}
+          <h3 className="mb-4 text-center text-lg font-bold">Como você quer pedir?</h3>
+          <div className="grid gap-3">
+            <ModeButton icon="🛵" title="Delivery" subtitle="Receba no seu endereço" onClick={() => onSelect({ type: "DELIVERY" })} />
+            <ModeButton icon="🏪" title="Retirada no balcão" subtitle="Peça e busque na loja" onClick={() => onSelect({ type: "PICKUP" })} />
+          </div>
+          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-mega-100 p-3.5 text-sm text-ink-900 ring-1 ring-mega-300">
+            <span className="text-2xl" aria-hidden>
+              🍽️
+            </span>
+            <p>
+              <strong>Está na loja?</strong> Leia o <strong>QR Code da sua mesa</strong> com a câmera do celular para pedir
+              na mesa.
+            </p>
+          </div>
         </div>
       </div>
     </div>

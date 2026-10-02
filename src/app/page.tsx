@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
 import { MenuApp } from "@/components/client/MenuApp";
+import { verifyTableToken } from "@/lib/tables";
 import type { MenuCategory, PublicSettings } from "@/types/menu";
 
 export const dynamic = "force-dynamic";
 
-export default async function MenuPage({ searchParams }: { searchParams: Promise<{ mesa?: string }> }) {
-  const { mesa } = await searchParams;
-  // QR Code da mesa aponta para /?mesa=12 — valida como inteiro 1..999.
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ mesa?: string; t?: string }> }) {
+  const { mesa, t } = await searchParams;
+  // QR Code da mesa aponta para /?mesa=12&t=<token>. Sem token válido, não há pedido na mesa.
   const tableNumber = mesa && /^\d{1,3}$/.test(mesa) && Number(mesa) > 0 ? Number(mesa) : null;
+  const tableValid = tableNumber !== null && typeof t === "string" && (await verifyTableToken(tableNumber, t));
+  const initialTable = tableValid && tableNumber !== null ? { number: tableNumber, token: t as string } : null;
+  const tableQrInvalid = mesa !== undefined && !tableValid;
 
   const [categories, settings] = await Promise.all([
     prisma.category.findMany({
@@ -46,5 +50,5 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
     pixEnabled: !!settings.pixKey,
   };
 
-  return <MenuApp categories={menu} settings={publicSettings} initialTable={tableNumber} />;
+  return <MenuApp categories={menu} settings={publicSettings} initialTable={initialTable} tableQrInvalid={tableQrInvalid} />;
 }

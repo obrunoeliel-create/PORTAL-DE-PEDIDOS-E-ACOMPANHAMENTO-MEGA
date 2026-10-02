@@ -48,16 +48,31 @@ const addressSchema = z
 const baseOrder = {
   customerName: text(2, 80),
   customerPhone: phone,
-  paymentMethod: z.enum(["PIX", "CARD", "CASH"]),
-  changeFor: cents.optional(),
   notes: optionalText(280),
   items: z.array(orderItemSchema).min(1, "Carrinho vazio.").max(50),
 };
 
+// Delivery e balcão: cliente escolhe o pagamento e pode aceitar atualizações no WhatsApp.
+const remoteOrder = {
+  ...baseOrder,
+  paymentMethod: z.enum(["PIX", "CARD", "CASH"]),
+  changeFor: cents.optional(),
+  whatsappUpdates: z.boolean().default(false),
+};
+
 export const createOrderSchema = z.discriminatedUnion("type", [
-  z.object({ ...baseOrder, type: z.literal("DELIVERY"), address: addressSchema }).strict(),
-  z.object({ ...baseOrder, type: z.literal("PICKUP") }).strict(),
-  z.object({ ...baseOrder, type: z.literal("TABLE"), tableNumber: z.number().int().min(1).max(999) }).strict(),
+  z.object({ ...remoteOrder, type: z.literal("DELIVERY"), address: addressSchema }).strict(),
+  z.object({ ...remoteOrder, type: z.literal("PICKUP") }).strict(),
+  // Mesa: sem forma de pagamento — é pago presencialmente no caixa antes de sair.
+  // A mesa só é aceita com o token do QR Code impresso na mesa (conferido no servidor).
+  z
+    .object({
+      ...baseOrder,
+      type: z.literal("TABLE"),
+      tableNumber: z.number().int().min(1).max(999),
+      tableToken: z.string().regex(/^[A-Za-z0-9_-]{24}$/, "QR Code da mesa inválido."),
+    })
+    .strict(),
 ]);
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
@@ -81,6 +96,9 @@ export const createDriverSchema = z.object({ name: text(2, 60), phone }).strict(
 export const toggleProductSchema = z.object({ active: z.boolean() }).strict();
 
 export const cuidParam = id;
+
+/** Loja troca a mesa de um pedido pelo portal. */
+export const changeTableSchema = z.object({ tableNumber: z.number().int().min(1).max(999) }).strict();
 
 /** Taxa de entrega definida pelo operador: até R$ 200,00. */
 export const deliveryFeeSchema = z.object({ deliveryFee: z.number().int().min(0).max(20_000) }).strict();

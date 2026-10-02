@@ -113,6 +113,30 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
     }
   }
 
+  async function changeTable(order: BoardOrder, tableNumber: number): Promise<boolean> {
+    setBusyId(order.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/table`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableNumber }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Falha ao trocar a mesa.");
+        return false;
+      }
+      setOrders((prev) => upsertOrder(prev, data.order));
+      return true;
+    } catch {
+      setError("Falha de conexão.");
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function setFee(order: BoardOrder, deliveryFee: number): Promise<boolean> {
     setBusyId(order.id);
     setError(null);
@@ -207,6 +231,7 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
                     busy={busyId === o.id}
                     onStatus={changeStatus}
                     onSetFee={setFee}
+                    onChangeTable={changeTable}
                     storeName={storeName}
                     highlight={o.status === "PENDING"}
                   />

@@ -61,3 +61,26 @@ h3 {
     @apply border-stone-200 bg-white hover:border-stone-300;
   }
 }
+
+/* Impressão dos QR Codes das mesas: A4, 4 por folha (2x2), só os cartões */
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+  body {
+    background: #fff !important;
+  }
+  .qr-card {
+    break-inside: avoid;
+    height: 138mm;
+    overflow: hidden;
+    justify-content: center;
+    border: 1px dashed #d6d3d1;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+  }
+  .qr-card .qr-img {
+    width: 62mm;
+  }
+}

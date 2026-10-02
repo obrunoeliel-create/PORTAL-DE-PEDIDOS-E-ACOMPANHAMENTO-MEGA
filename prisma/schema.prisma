@@ -33,6 +33,7 @@ enum PaymentMethod {
   PIX
   CARD
   CASH
+  ON_SITE // Pedido na mesa: pago presencialmente no caixa antes de sair
 }
 
 model User {
@@ -132,6 +133,11 @@ model Order {
   deliveryFee       Int?
   total             Int
   notes             String?
+  // Cliente aceitou receber atualizações automáticas no WhatsApp (opt-in explícito)
+  whatsappUpdates   Boolean       @default(false)
+  waAcceptedAt      DateTime? // aviso "pedido aceito" enviado
+  waDispatchedAt    DateTime? // aviso "saiu para entrega" / "pronto para retirada" enviado
+  waError           String? // último erro de envio (mostrado no painel)
   driverId          String?
   driver            Driver?       @relation(fields: [driverId], references: [id])
   items             OrderItem[]
@@ -178,4 +184,14 @@ model StoreSettings {
   pixHolderName   String?
   whatsappNumber  String?
   updatedAt       DateTime @updatedAt
+}
+
+// Mesas do salão. O QR Code de cada mesa leva o número + o token; pedido na mesa só é aceito
+// com o token correto (impede pedir "na mesa" sem estar na loja). Gerar novo token invalida o QR antigo.
+model DiningTable {
+  number    Int      @id
+  token     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

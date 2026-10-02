@@ -13,7 +13,8 @@ type Props = {
   cart: CartItem[];
   setCart: Dispatch<SetStateAction<CartItem[]>>;
   mode: OrderMode | null;
-  onChangeMode: () => void;
+  /** Ausente quando a mesa veio do QR Code (travada). */
+  onChangeMode?: () => void;
   settings: PublicSettings;
   onClose: () => void;
   onOrderPlaced?: (order: { number: number; token: string }) => void;
@@ -39,6 +40,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   const [payment, setPayment] = useState<PaymentMethodValue>(settings.pixEnabled ? "PIX" : "CARD");
   const [changeFor, setChangeFor] = useState("");
   const [notes, setNotes] = useState("");
+  const [waUpdates, setWaUpdates] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -72,8 +74,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
       customerName: name,
       customerPhone: phone,
       address: mode.type === "DELIVERY" ? formatAddress(address) : null,
-      paymentMethod: payment,
-      changeFor: payment === "CASH" ? changeCents : null,
+      paymentMethod: mode.type === "TABLE" ? "ON_SITE" : payment,
+      changeFor: mode.type !== "TABLE" && payment === "CASH" ? changeCents : null,
       items: cart.map((i) => ({ ...i, totalPrice: i.unitPrice * i.quantity })),
       subtotal,
       deliveryFee,
@@ -86,8 +88,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!mode) return onChangeMode();
-    if (payment === "CASH" && changeFor && (changeCents === null || changeCents < total)) {
+    if (!mode) return onChangeMode?.();
+    if (mode.type !== "TABLE" && payment === "CASH" && changeFor && (changeCents === null || changeCents < total)) {
       setFieldErrors({ changeFor: "O valor para troco deve ser maior ou igual ao total." });
       return;
     }
@@ -99,7 +101,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
 
     const payload = {
       type: mode.type,
-      ...(mode.type === "TABLE" && { tableNumber: mode.tableNumber }),
+      ...(mode.type === "TABLE" && { tableNumber: mode.tableNumber, tableToken: mode.tableToken }),
       ...(mode.type === "DELIVERY" && {
         address: {
           street: address.street,
@@ -111,8 +113,11 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
       }),
       customerName: name,
       customerPhone: phone,
-      paymentMethod: payment,
-      changeFor: payment === "CASH" && changeCents ? changeCents : undefined,
+      ...(mode.type !== "TABLE" && {
+        paymentMethod: payment,
+        changeFor: payment === "CASH" && changeCents ? changeCents : undefined,
+        whatsappUpdates: waUpdates,
+      }),
       notes: notes || undefined,
       items: cart.map((i) => ({
         productId: i.productId,
@@ -168,6 +173,11 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
               <strong className="font-display">{formatBRL(result.total)}</strong>
             </p>
           </div>
+          {result.paymentMethod === "ON_SITE" && (
+            <p className="rounded-2xl bg-mega-100 p-4 text-left text-sm text-ink-900 ring-1 ring-mega-300">
+              💰 <strong>Pagamento no caixa:</strong> é só pagar presencialmente no caixa da loja antes de sair.
+            </p>
+          )}
           {result.feePending && (
             <p className="rounded-2xl bg-mega-100 p-4 text-left text-sm text-ink-900 ring-1 ring-mega-300">
               🛵 A loja vai calcular a taxa de entrega para o seu endereço.
@@ -207,7 +217,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   const err = (field: string) =>
     fieldErrors[field] ? <p className="mt-1 text-xs font-medium text-brand-700">{fieldErrors[field]}</p> : null;
 
-  const paymentIcon: Record<PaymentMethodValue, string> = { PIX: "⚡", CARD: "💳", CASH: "💵" };
+  const paymentIcon: Record<PaymentMethodValue, string> = { PIX: "⚡", CARD: "💳", CASH: "💵", ON_SITE: "💰" };
   const modeIcon = { DELIVERY: "🛵", PICKUP: "🏪", TABLE: "🍽️" } as const;
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
@@ -218,7 +228,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
           <button
             type="button"
             onClick={onChangeMode}
-            className="card flex w-full items-center justify-between p-3.5 text-left text-sm transition hover:shadow-lift"
+            disabled={!onChangeMode}
+            className="card flex w-full items-center justify-between p-3.5 text-left text-sm transition enabled:hover:shadow-lift"
           >
             <span className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-mega-400 text-xl" aria-hidden>
@@ -231,7 +242,11 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
                 </strong>
               </span>
             </span>
-            <span className="font-semibold text-brand-600">Alterar</span>
+            {onChangeMode ? (
+              <span className="font-semibold text-brand-600">Alterar</span>
+            ) : (
+              <span className="text-xs font-medium text-stone-500">🔒 via QR Code</span>
+            )}
           </button>
 
           <Card title="Itens">
@@ -285,6 +300,27 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
                 <input className="input" placeholder="WhatsApp com DDD" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} inputMode="tel" required autoComplete="tel" />
                 {err("customerPhone")}
               </div>
+              {mode && mode.type !== "TABLE" && (
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition ${
+                    waUpdates ? "border-[#25d366] bg-[#25d366]/10" : "border-stone-200 hover:border-stone-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[#25d366]"
+                    checked={waUpdates}
+                    onChange={(e) => setWaUpdates(e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <span className="block font-semibold">📲 Quero receber atualizações no WhatsApp</span>
+                    <span className="text-stone-500">
+                      Avisamos quando o pedido for aceito e quando{" "}
+                      {mode.type === "DELIVERY" ? "sair para entrega" : "estiver pronto para retirada"}.
+                    </span>
+                  </span>
+                </label>
+              )}
             </div>
           </Card>
 
@@ -304,6 +340,19 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
             </Card>
           )}
 
+          {mode?.type === "TABLE" ? (
+            <Card title="Pagamento">
+              <div className="flex gap-3 rounded-xl bg-mega-100 p-3.5 text-sm ring-1 ring-mega-300">
+                <span className="text-2xl" aria-hidden>
+                  💰
+                </span>
+                <p>
+                  <strong className="block font-display text-base">Pague no caixa ao sair</strong>
+                  Pedidos na mesa são pagos presencialmente no caixa da loja. O total do seu pedido aparece abaixo.
+                </p>
+              </div>
+            </Card>
+          ) : (
           <Card title="Pagamento">
             <div className="grid grid-cols-3 gap-2">
               {payments.map((p) => (
@@ -332,6 +381,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
               </div>
             )}
           </Card>
+          )}
 
           <Card title="Observações do pedido">
             <textarea
