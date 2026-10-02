@@ -1,5 +1,5 @@
 // Service worker mínimo do cardápio (PWA): cache de assets estáticos e fallback offline da página.
-const CACHE = "orderflow-v1";
+const CACHE = "orderflow-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -19,7 +19,7 @@ self.addEventListener("fetch", (event) => {
   // Nunca cachear API, painel ou socket.
   if (/^\/(api|admin|socket\.io)/.test(url.pathname)) return;
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname === "/icon.svg") {
+  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/brand/") || /^\/(icon-\d+|apple-touch-icon)\.png$/.test(url.pathname)) {
     event.respondWith(
       caches.match(req).then(
         (hit) =>

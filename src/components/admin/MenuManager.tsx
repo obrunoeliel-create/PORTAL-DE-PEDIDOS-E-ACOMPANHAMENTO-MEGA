@@ -46,17 +46,17 @@ export function MenuManager({ categories }: { categories: Category[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">Gestão de Cardápio</h1>
+        <h1 className="text-2xl font-extrabold sm:text-3xl">Gestão de Cardápio</h1>
         <p className="text-sm text-stone-500">Itens desativados somem do cardápio do cliente imediatamente.</p>
       </div>
       {error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-2xl bg-brand-50 p-3 text-sm font-medium text-brand-800" role="alert">
           {error}
         </p>
       )}
       {state.map((c) => (
-        <section key={c.id} className="rounded-xl bg-white ring-1 ring-stone-200">
-          <h2 className="border-b border-stone-100 px-4 py-3 font-semibold">{c.name}</h2>
+        <section key={c.id} className="card overflow-hidden">
+          <h2 className="border-b border-stone-100 bg-[#faf7f2] px-4 py-3 font-display text-lg font-bold">{c.name}</h2>
           <ul className="divide-y divide-stone-100">
             {c.products.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
@@ -74,7 +74,7 @@ export function MenuManager({ categories }: { categories: Category[] }) {
                   aria-label={`${p.active ? "Desativar" : "Ativar"} ${p.name}`}
                   disabled={busy === p.id}
                   onClick={() => toggle(p)}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${p.active ? "bg-green-500" : "bg-stone-300"}`}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${p.active ? "bg-emerald-500" : "bg-stone-300"}`}
                 >
                   <span
                     className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${

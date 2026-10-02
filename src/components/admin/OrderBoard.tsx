@@ -6,11 +6,11 @@ import { STATUS_LABEL } from "@/lib/labels";
 import { OrderCard } from "./OrderCard";
 import { fetchBoardOrders, upsertOrder, useStaffSocket } from "./useStaffSocket";
 
-const COLUMNS: { status: OrderStatusValue; title: string; accent: string }[] = [
-  { status: "PENDING", title: STATUS_LABEL.PENDING, accent: "border-red-500" },
-  { status: "PREPARING", title: STATUS_LABEL.PREPARING, accent: "border-amber-500" },
-  { status: "OUT_FOR_DELIVERY", title: STATUS_LABEL.OUT_FOR_DELIVERY, accent: "border-blue-500" },
-  { status: "COMPLETED", title: STATUS_LABEL.COMPLETED, accent: "border-green-600" },
+const COLUMNS: { status: OrderStatusValue; title: string; icon: string; dot: string; head: string }[] = [
+  { status: "PENDING", title: STATUS_LABEL.PENDING, icon: "🔔", dot: "bg-brand-500", head: "bg-brand-600 text-white" },
+  { status: "PREPARING", title: STATUS_LABEL.PREPARING, icon: "👨‍🍳", dot: "bg-mega-500", head: "bg-mega-400 text-ink-900" },
+  { status: "OUT_FOR_DELIVERY", title: "Saiu p/ entrega / Pronto", icon: "🛵", dot: "bg-sky-500", head: "bg-sky-600 text-white" },
+  { status: "COMPLETED", title: STATUS_LABEL.COMPLETED, icon: "✅", dot: "bg-emerald-500", head: "bg-emerald-600 text-white" },
 ];
 
 /** Alerta sonoro via Web Audio API (sem arquivo de áudio). */
@@ -65,13 +65,13 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
   // Alerta visual na aba do navegador.
   useEffect(() => {
     if (pendingCount === 0) {
-      document.title = "Pedidos · OrderFlow OS";
+      document.title = "Mega Esfiha Jurema · Pedidos";
       return;
     }
     let on = false;
     const id = setInterval(() => {
       on = !on;
-      document.title = on ? `🔴 (${pendingCount}) NOVO PEDIDO` : `(${pendingCount}) Pedidos · OrderFlow OS`;
+      document.title = on ? `🔴 (${pendingCount}) NOVO PEDIDO · Mega Esfiha Jurema` : `(${pendingCount}) Mega Esfiha Jurema · Pedidos`;
     }, 1000);
     return () => clearInterval(id);
   }, [pendingCount]);
@@ -138,30 +138,50 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold">Monitor de Pedidos</h1>
-        <span className={`flex items-center gap-1.5 text-sm ${connected ? "text-green-700" : "text-red-600"}`}>
-          <span className={`h-2 w-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
-          {connected ? "Tempo real conectado" : "Desconectado — tentando reconectar"}
-        </span>
+        <div>
+          <h1 className="text-2xl font-extrabold sm:text-3xl">Monitor de pedidos</h1>
+          <span className={`mt-1 inline-flex items-center gap-1.5 text-sm font-medium ${connected ? "text-emerald-700" : "text-brand-700"}`}>
+            <span className="relative flex h-2.5 w-2.5">
+              {connected && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
+              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${connected ? "bg-emerald-500" : "bg-brand-500"}`} />
+            </span>
+            {connected ? "Tempo real conectado" : "Desconectado — tentando reconectar"}
+          </span>
+        </div>
         <div className="flex-1" />
         {!soundOn ? (
-          <button onClick={enableSound} className="btn-primary">
+          <button onClick={enableSound} className="btn-primary animate-pulse py-3">
             🔔 Ativar alerta sonoro
           </button>
         ) : (
-          <span className="text-sm text-stone-600">🔔 Som ativo</span>
+          <span className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-stone-600 shadow-card">🔔 Som ativo</span>
         )}
       </div>
 
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {COLUMNS.map((col) => (
+          <div key={col.status} className="card flex items-center gap-3 p-4">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#f4f1ec] text-2xl" aria-hidden>
+              {col.icon}
+            </span>
+            <div>
+              <p className="font-display text-2xl font-extrabold leading-none">{orders.filter((o) => o.status === col.status).length}</p>
+              <p className="text-xs text-stone-500">{col.title}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {toast && (
-        <div className="animate-flash rounded-xl border border-red-300 p-4 font-semibold text-red-800" role="status">
-          🔔 {toast}
+        <div className="flex animate-slide-up items-center gap-3 rounded-2xl bg-brand-600 p-4 font-semibold text-white shadow-glow" role="status">
+          <span className="animate-wiggle text-2xl" aria-hidden>🔔</span>
+          {toast}
         </div>
       )}
       {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <div className="rounded-2xl bg-brand-50 p-3 text-sm font-medium text-brand-800 ring-1 ring-brand-200" role="alert">
           {error}
         </div>
       )}
@@ -171,12 +191,15 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
           const list = orders.filter((o) => o.status === col.status);
           const shown = col.status === "COMPLETED" ? list.slice(-15).reverse() : list;
           return (
-            <section key={col.status} className={`rounded-xl border-t-4 bg-stone-200/60 p-3 ${col.accent}`}>
-              <h2 className="mb-3 flex items-center justify-between font-semibold">
-                {col.title}
-                <span className="rounded-full bg-white px-2 text-sm">{list.length}</span>
+            <section key={col.status} className="flex flex-col rounded-3xl bg-stone-200/50 p-2">
+              <h2 className={`mb-2 flex items-center justify-between rounded-2xl px-4 py-3 font-display font-bold ${col.head}`}>
+                <span className="flex items-center gap-2">
+                  <span aria-hidden>{col.icon}</span>
+                  {col.title}
+                </span>
+                <span className="grid h-7 min-w-7 place-items-center rounded-full bg-white/90 px-2 text-sm text-ink-900">{list.length}</span>
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {shown.map((o) => (
                   <OrderCard
                     key={o.id}
@@ -188,7 +211,12 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
                     highlight={o.status === "PENDING"}
                   />
                 ))}
-                {shown.length === 0 && <p className="py-6 text-center text-sm text-stone-500">Nenhum pedido</p>}
+                {shown.length === 0 && (
+                  <p className="py-10 text-center text-sm text-stone-400">
+                    <span className="mb-1 block text-2xl opacity-50" aria-hidden>{col.icon}</span>
+                    Nenhum pedido
+                  </p>
+                )}
               </div>
             </section>
           );

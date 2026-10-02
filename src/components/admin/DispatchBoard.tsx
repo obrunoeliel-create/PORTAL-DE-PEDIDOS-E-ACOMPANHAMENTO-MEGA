@@ -89,19 +89,19 @@ export function DispatchBoard({ initialOrders, initialDrivers, canManageDrivers 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       <section className="space-y-3">
-        <h1 className="text-xl font-bold">Despacho de Entregas</h1>
+        <h1 className="text-2xl font-extrabold sm:text-3xl">Despacho de Entregas</h1>
         {error && (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+          <p className="rounded-2xl bg-brand-50 p-3 text-sm font-medium text-brand-800" role="alert">
             {error}
           </p>
         )}
         {deliveries.length === 0 && <p className="text-stone-500">Nenhuma entrega em andamento.</p>}
         <div className="grid gap-3 md:grid-cols-2">
           {deliveries.map((o) => (
-            <article key={o.id} className="space-y-2 rounded-xl bg-white p-4 text-sm shadow-sm ring-1 ring-stone-200">
+            <article key={o.id} className="space-y-2 card p-4 text-sm">
               <div className="flex justify-between">
-                <span className="font-bold">#{o.number}</span>
-                <span className="rounded-full bg-stone-100 px-2 text-xs font-medium">{STATUS_LABEL[o.status]}</span>
+                <span className="font-display text-lg font-extrabold">#{o.number}</span>
+                <span className="rounded-full bg-[#f4f1ec] px-2.5 py-0.5 text-xs font-semibold">{STATUS_LABEL[o.status]}</span>
               </div>
               <p>
                 <span className="font-medium">{o.customerName}</span> · {o.customerPhone}
@@ -145,8 +145,8 @@ export function DispatchBoard({ initialOrders, initialDrivers, canManageDrivers 
       </section>
 
       <aside className="space-y-3">
-        <h2 className="font-semibold">Entregadores</h2>
-        <ul className="divide-y divide-stone-200 rounded-xl bg-white ring-1 ring-stone-200">
+        <h2 className="font-display text-lg font-bold">🛵 Entregadores</h2>
+        <ul className="card divide-y divide-stone-100 overflow-hidden">
           {drivers.map((d) => {
             const count = orders.filter((o) => o.driverId === d.id && o.status === "OUT_FOR_DELIVERY").length;
             return (
@@ -164,7 +164,7 @@ export function DispatchBoard({ initialOrders, initialDrivers, canManageDrivers 
           {drivers.length === 0 && <li className="p-3 text-sm text-stone-500">Nenhum entregador cadastrado.</li>}
         </ul>
         {canManageDrivers && (
-          <form onSubmit={addDriver} className="space-y-2 rounded-xl bg-white p-3 ring-1 ring-stone-200">
+          <form onSubmit={addDriver} className="space-y-2 card p-4">
             <p className="text-sm font-medium">Novo entregador</p>
             <input className="input" placeholder="Nome" value={newDriver.name} onChange={(e) => setNewDriver({ ...newDriver, name: e.target.value })} maxLength={60} required />
             <input className="input" placeholder="Telefone" value={newDriver.phone} onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })} maxLength={20} inputMode="tel" required />

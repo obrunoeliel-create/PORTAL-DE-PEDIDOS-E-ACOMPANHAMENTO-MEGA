@@ -157,15 +157,20 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   if (result) {
     return (
       <Shell onClose={onClose} title="Pedido enviado!">
-        <div className="space-y-4 p-5 text-center">
-          <p className="text-5xl">✅</p>
-          <p className="text-lg font-bold">Pedido #{result.number} recebido</p>
-          <p className="text-stone-600">
-            {result.feePending ? "Total sem a taxa de entrega" : "Total"}: {formatBRL(result.total)}
-          </p>
+        <div className="flex-1 space-y-4 overflow-y-auto p-5 text-center">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 px-5 py-7 text-white">
+            <div className="bg-dots absolute inset-0" aria-hidden />
+            <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-full bg-white text-4xl shadow-lift">✅</div>
+            <p className="relative mt-3 text-sm text-white/80">Recebemos seu pedido!</p>
+            <p className="relative font-display text-4xl font-extrabold">#{result.number}</p>
+            <p className="relative mt-1 text-white/90">
+              {result.feePending ? "Total sem a taxa de entrega" : "Total"}:{" "}
+              <strong className="font-display">{formatBRL(result.total)}</strong>
+            </p>
+          </div>
           {result.feePending && (
-            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-              A loja vai calcular a taxa de entrega para o seu endereço.
+            <p className="rounded-2xl bg-mega-100 p-4 text-left text-sm text-ink-900 ring-1 ring-mega-300">
+              🛵 A loja vai calcular a taxa de entrega para o seu endereço.
               {result.paymentMethod === "PIX"
                 ? " O QR Code do PIX com o valor final aparece na página de acompanhamento."
                 : " Você acompanha o valor final na página do pedido."}
@@ -183,20 +188,15 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
               customerName={name}
             />
           )}
-          <Link href={`/pedido/${result.trackingToken}`} className="btn-primary block py-3">
-            {result.feePending && result.paymentMethod === "PIX" ? "Acompanhar pedido e pagar" : "Acompanhar pedido"}
+          <Link href={`/pedido/${result.trackingToken}`} className="btn-primary w-full py-3.5 text-base">
+            📦 {result.feePending && result.paymentMethod === "PIX" ? "Acompanhar pedido e pagar" : "Acompanhar meu pedido"}
           </Link>
           {result.whatsappUrl && (
-            <a
-              href={result.whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-lg border border-green-600 px-4 py-3 font-semibold text-green-700 hover:bg-green-50"
-            >
-              Enviar resumo do pedido no WhatsApp
+            <a href={result.whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-whatsapp w-full">
+              💬 Enviar resumo no WhatsApp
             </a>
           )}
-          <button onClick={onClose} className="btn-ghost w-full">
+          <button onClick={onClose} className="btn-ghost w-full py-3">
             Voltar ao cardápio
           </button>
         </div>
@@ -205,101 +205,124 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   }
 
   const err = (field: string) =>
-    fieldErrors[field] ? <p className="mt-1 text-xs text-red-600">{fieldErrors[field]}</p> : null;
+    fieldErrors[field] ? <p className="mt-1 text-xs font-medium text-brand-700">{fieldErrors[field]}</p> : null;
+
+  const paymentIcon: Record<PaymentMethodValue, string> = { PIX: "⚡", CARD: "💳", CASH: "💵" };
+  const modeIcon = { DELIVERY: "🛵", PICKUP: "🏪", TABLE: "🍽️" } as const;
+  const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <Shell onClose={onClose} title="Seu pedido">
+    <Shell onClose={onClose} title="Seu pedido" subtitle={`${itemCount} ${itemCount === 1 ? "item" : "itens"}`}>
       <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
-          <div className="flex items-center justify-between rounded-lg bg-stone-100 px-3 py-2 text-sm">
-            <span>
-              Modalidade:{" "}
-              <strong>
-                {mode ? (mode.type === "TABLE" ? `Mesa ${mode.tableNumber}` : ORDER_TYPE_LABEL[mode.type]) : "—"}
-              </strong>
+        <div className="flex-1 space-y-4 overflow-y-auto bg-[#faf7f2] p-4">
+          <button
+            type="button"
+            onClick={onChangeMode}
+            className="card flex w-full items-center justify-between p-3.5 text-left text-sm transition hover:shadow-lift"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-mega-400 text-xl" aria-hidden>
+                {mode ? modeIcon[mode.type] : "📍"}
+              </span>
+              <span>
+                <span className="block text-xs text-stone-500">Modalidade</span>
+                <strong className="font-display text-base">
+                  {mode ? (mode.type === "TABLE" ? `Mesa ${mode.tableNumber}` : ORDER_TYPE_LABEL[mode.type]) : "Escolher"}
+                </strong>
+              </span>
             </span>
-            <button type="button" onClick={onChangeMode} className="font-medium text-brand-700">
-              Alterar
-            </button>
-          </div>
+            <span className="font-semibold text-brand-600">Alterar</span>
+          </button>
 
-          {cart.length === 0 ? (
-            <p className="py-8 text-center text-stone-500">Seu carrinho está vazio.</p>
-          ) : (
-            <ul className="divide-y divide-stone-100">
-              {cart.map((i) => (
-                <li key={i.key} className="flex gap-3 py-3">
-                  <div className="flex-1 text-sm">
-                    <p className="font-medium">
-                      {i.halfProductName ? `1/2 ${i.productName} + 1/2 ${i.halfProductName}` : i.productName}
-                      {i.variantName && <span className="text-stone-500"> · {i.variantName}</span>}
-                    </p>
-                    {i.addonNames.length > 0 && <p className="text-stone-500">+ {i.addonNames.join(", ")}</p>}
-                    {i.notes && <p className="text-stone-500">Obs: {i.notes}</p>}
-                    <p className="mt-1 font-semibold">{formatBRL(i.unitPrice * i.quantity)}</p>
-                  </div>
-                  <div className="flex h-fit items-center rounded-lg border border-stone-300 text-sm">
-                    <button type="button" onClick={() => updateQty(i.key, -1)} className="px-2.5 py-1" aria-label="Diminuir">
-                      −
-                    </button>
-                    <span className="w-6 text-center">{i.quantity}</span>
-                    <button type="button" onClick={() => updateQty(i.key, 1)} className="px-2.5 py-1" aria-label="Aumentar">
-                      +
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <Card title="Itens">
+            {cart.length === 0 ? (
+              <p className="py-6 text-center text-stone-500">🛒 Seu carrinho está vazio.</p>
+            ) : (
+              <ul className="divide-y divide-stone-100">
+                {cart.map((i) => (
+                  <li key={i.key} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1 text-sm">
+                      <p className="font-semibold">
+                        {i.halfProductName ? `½ ${i.productName} + ½ ${i.halfProductName}` : i.productName}
+                        {i.variantName && <span className="font-normal text-stone-500"> · {i.variantName}</span>}
+                      </p>
+                      {i.addonNames.length > 0 && <p className="text-stone-500">+ {i.addonNames.join(", ")}</p>}
+                      {i.notes && <p className="text-stone-500">“{i.notes}”</p>}
+                      <p className="mt-1 font-display font-bold text-brand-700">{formatBRL(i.unitPrice * i.quantity)}</p>
+                    </div>
+                    <div className="flex h-fit items-center rounded-xl bg-stone-100 p-0.5 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(i.key, -1)}
+                        className="grid h-8 w-8 place-items-center rounded-lg font-bold text-brand-600 hover:bg-white"
+                        aria-label={i.quantity === 1 ? "Remover" : "Diminuir"}
+                      >
+                        {i.quantity === 1 ? "🗑" : "−"}
+                      </button>
+                      <span className="w-6 text-center font-display font-bold">{i.quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateQty(i.key, 1)}
+                        className="grid h-8 w-8 place-items-center rounded-lg font-bold text-brand-600 hover:bg-white"
+                        aria-label="Aumentar"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
-          <fieldset className="space-y-3">
-            <legend className="mb-1 text-sm font-semibold">Seus dados</legend>
-            <div>
-              <input className="input" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required autoComplete="name" />
-              {err("customerName")}
+          <Card title="Seus dados">
+            <div className="space-y-2.5">
+              <div>
+                <input className="input" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required autoComplete="name" />
+                {err("customerName")}
+              </div>
+              <div>
+                <input className="input" placeholder="WhatsApp com DDD" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} inputMode="tel" required autoComplete="tel" />
+                {err("customerPhone")}
+              </div>
             </div>
-            <div>
-              <input className="input" placeholder="Telefone / WhatsApp (com DDD)" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} inputMode="tel" required autoComplete="tel" />
-              {err("customerPhone")}
-            </div>
-          </fieldset>
+          </Card>
 
           {mode?.type === "DELIVERY" && (
-            <fieldset className="space-y-3">
-              <legend className="mb-1 text-sm font-semibold">Endereço de entrega</legend>
-              <div className="grid grid-cols-[1fr_6rem] gap-2">
-                <input className="input" placeholder="Rua" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} maxLength={120} required autoComplete="address-line1" />
-                <input className="input" placeholder="Nº" value={address.number} onChange={(e) => setAddress({ ...address, number: e.target.value })} maxLength={15} required />
+            <Card title="Endereço de entrega">
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+                  <input className="input" placeholder="Rua" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} maxLength={120} required autoComplete="address-line1" />
+                  <input className="input" placeholder="Nº" value={address.number} onChange={(e) => setAddress({ ...address, number: e.target.value })} maxLength={15} required />
+                </div>
+                {err("address.street")}
+                <input className="input" placeholder="Bairro" value={address.district} onChange={(e) => setAddress({ ...address, district: e.target.value })} maxLength={80} required />
+                {err("address.district")}
+                <input className="input" placeholder="Complemento (opcional)" value={address.complement} onChange={(e) => setAddress({ ...address, complement: e.target.value })} maxLength={80} />
+                <input className="input" placeholder="Ponto de referência (opcional)" value={address.reference} onChange={(e) => setAddress({ ...address, reference: e.target.value })} maxLength={120} />
               </div>
-              {err("address.street")}
-              <input className="input" placeholder="Bairro" value={address.district} onChange={(e) => setAddress({ ...address, district: e.target.value })} maxLength={80} required />
-              {err("address.district")}
-              <input className="input" placeholder="Complemento (opcional)" value={address.complement} onChange={(e) => setAddress({ ...address, complement: e.target.value })} maxLength={80} />
-              <input className="input" placeholder="Ponto de referência (opcional)" value={address.reference} onChange={(e) => setAddress({ ...address, reference: e.target.value })} maxLength={120} />
-            </fieldset>
+            </Card>
           )}
 
-          <fieldset>
-            <legend className="mb-2 text-sm font-semibold">Pagamento</legend>
+          <Card title="Pagamento">
             <div className="grid grid-cols-3 gap-2">
               {payments.map((p) => (
-                <label
-                  key={p}
-                  className={`cursor-pointer rounded-lg border p-2.5 text-center text-sm font-medium ${
-                    payment === p ? "border-brand-500 bg-brand-50 text-brand-700" : "border-stone-200"
-                  }`}
-                >
+                <label key={p} className={`chip text-center font-semibold ${payment === p ? "chip-on" : "chip-off"}`}>
                   <input type="radio" name="payment" className="sr-only" checked={payment === p} onChange={() => setPayment(p)} />
+                  <span className="block text-xl" aria-hidden>
+                    {paymentIcon[p]}
+                  </span>
                   {p === "CARD" ? "Cartão" : PAYMENT_LABEL[p]}
                 </label>
               ))}
             </div>
-            {payment === "CARD" && <p className="mt-2 text-xs text-stone-500">Pagamento na maquininha, na entrega ou no balcão.</p>}
+            {payment === "PIX" && <p className="mt-2.5 text-xs text-stone-500">O QR Code aparece depois que você enviar o pedido.</p>}
+            {payment === "CARD" && <p className="mt-2.5 text-xs text-stone-500">Pagamento na maquininha, na entrega ou no balcão.</p>}
             {payment === "CASH" && (
               <div className="mt-3">
                 <input className="input" placeholder="Troco para quanto? (opcional)" value={changeFor} onChange={(e) => setChangeFor(e.target.value)} inputMode="decimal" maxLength={10} />
                 {changeValue !== null && changeValue >= 0 && (
-                  <p className="mt-1 text-sm text-green-700">
+                  <p className="mt-1.5 text-sm font-medium text-green-700">
                     {mode?.type === "DELIVERY"
                       ? `Troco sem contar a taxa de entrega: ${formatBRL(changeValue)}`
                       : `Seu troco: ${formatBRL(changeValue)}`}
@@ -308,25 +331,42 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
                 {err("changeFor")}
               </div>
             )}
-          </fieldset>
+          </Card>
 
-          <div>
-            <textarea className="input resize-none" rows={2} placeholder="Observações do pedido (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={280} />
-          </div>
+          <Card title="Observações do pedido">
+            <textarea
+              className="input resize-none"
+              rows={2}
+              placeholder="Opcional"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={280}
+              aria-label="Observações do pedido"
+            />
+          </Card>
         </div>
 
-        <div className="space-y-2 border-t border-stone-100 p-5 text-sm">
+        <div className="space-y-2 border-t border-stone-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm">
           <Row label="Subtotal" value={formatBRL(subtotal)} />
           {mode?.type === "DELIVERY" && <Row label="Taxa de entrega" value="a definir pela loja" />}
           <Row label={mode?.type === "DELIVERY" ? "Total (sem a taxa)" : "Total"} value={formatBRL(total)} bold />
-          {error && <p className="rounded-lg bg-red-50 p-2 text-red-700" role="alert">{error}</p>}
+          {error && (
+            <p className="rounded-xl bg-brand-50 p-3 font-medium text-brand-800" role="alert">
+              {error}
+            </p>
+          )}
           {fallbackUrl && (
-            <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-green-600 px-4 py-2.5 text-center font-semibold text-white">
-              Enviar pedido pelo WhatsApp
+            <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="btn-whatsapp w-full">
+              💬 Enviar pedido pelo WhatsApp
             </a>
           )}
-          <button type="submit" disabled={submitting || cart.length === 0 || !settings.isOpen} className="btn-primary w-full py-3 text-base">
-            {submitting ? "Enviando..." : "Finalizar pedido"}
+          <button
+            type="submit"
+            disabled={submitting || cart.length === 0 || !settings.isOpen}
+            className="btn-primary w-full justify-between py-4 text-base"
+          >
+            <span>{submitting ? "Enviando..." : "Finalizar pedido"}</span>
+            <span className="font-display font-bold">{formatBRL(total)}</span>
           </button>
         </div>
       </form>
@@ -334,22 +374,48 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, onClos
   );
 }
 
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="card p-4">
+      <h3 className="mb-3 font-display text-base font-bold">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className={`flex justify-between ${bold ? "text-base font-bold" : "text-stone-600"}`}>
+    <div className={`flex justify-between ${bold ? "font-display text-lg font-bold" : "text-stone-500"}`}>
       <span>{label}</span>
       <span>{value}</span>
     </div>
   );
 }
 
-function Shell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Shell({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/50" role="dialog" aria-modal>
-      <div className="flex h-full w-full max-w-md flex-col bg-white">
-        <div className="flex items-center justify-between border-b border-stone-100 p-5">
-          <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-stone-400" aria-label="Fechar">
+    <div className="fixed inset-0 z-40 flex animate-fade-in justify-end bg-ink-950/60 backdrop-blur-sm" role="dialog" aria-modal>
+      <div className="flex h-full w-full max-w-md animate-slide-up flex-col bg-white shadow-lift">
+        <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+          <div>
+            <h2 className="text-xl font-extrabold">{title}</h2>
+            {subtitle && <p className="text-xs text-stone-500">{subtitle}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-full bg-stone-100 text-xl leading-none text-stone-500 hover:bg-stone-200"
+            aria-label="Fechar"
+          >
             ×
           </button>
         </div>

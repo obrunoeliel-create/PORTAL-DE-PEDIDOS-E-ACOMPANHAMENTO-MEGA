@@ -47,7 +47,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Financeiro</h1>
+          <h1 className="text-2xl font-extrabold sm:text-3xl">Financeiro</h1>
           <p className="text-sm text-stone-500">Pedidos não cancelados do dia selecionado.</p>
         </div>
         <form className="flex gap-2" method="get">
@@ -73,9 +73,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
+    <div className="card p-5">
       <p className="text-sm text-stone-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
+      <p className="mt-1 font-display text-3xl font-extrabold tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
     </div>
   );
@@ -91,8 +91,8 @@ function Breakdown({
   total: number;
 }) {
   return (
-    <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
-      <h2 className="mb-4 font-semibold">{title}</h2>
+    <section className="card p-5">
+      <h2 className="mb-4 font-display text-lg font-bold">{title}</h2>
       <ul className="space-y-4">
         {rows.map((r) => {
           const pct = total ? Math.round((r.total / total) * 100) : 0;
@@ -106,8 +106,8 @@ function Breakdown({
                   {formatBRL(r.total)} <span className="font-normal text-stone-500">· {pct}%</span>
                 </span>
               </div>
-              <div className="h-2 rounded-full bg-stone-100">
-                <div className="h-2 rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
+              <div className="h-2.5 rounded-full bg-stone-100">
+                <div className="h-2.5 rounded-full bg-gradient-to-r from-brand-500 to-mega-400" style={{ width: `${pct}%` }} />
               </div>
             </li>
           );
