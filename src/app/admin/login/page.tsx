@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/Logo";
+import { unlockOrderAlert } from "@/lib/order-alert";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +14,8 @@ export default function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // O clique em "Entrar" libera o áudio no navegador: o aviso de pedido novo já chega ligado no painel.
+    unlockOrderAlert();
     setLoading(true);
     setError(null);
     try {

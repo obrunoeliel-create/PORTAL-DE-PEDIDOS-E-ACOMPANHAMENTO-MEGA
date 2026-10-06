@@ -5,6 +5,14 @@ import type { BoardOrder, OrderStatusValue } from "@/types/order";
 import { STATUS_LABEL } from "@/lib/labels";
 import { OrderCard } from "./OrderCard";
 import { fetchBoardOrders, upsertOrder, useStaffSocket } from "./useStaffSocket";
+import {
+  isOrderAlertEnabled,
+  isOrderAlertReady,
+  onOrderAlertStateChange,
+  playOrderAlert,
+  setOrderAlertEnabled,
+  unlockOrderAlert,
+} from "@/lib/order-alert";
 
 const COLUMNS: { status: OrderStatusValue; title: string; icon: string; dot: string; head: string }[] = [
   { status: "PENDING", title: STATUS_LABEL.PENDING, icon: "🔔", dot: "bg-brand-500", head: "bg-brand-600 text-white" },
@@ -13,30 +21,16 @@ const COLUMNS: { status: OrderStatusValue; title: string; icon: string; dot: str
   { status: "COMPLETED", title: STATUS_LABEL.COMPLETED, icon: "✅", dot: "bg-emerald-500", head: "bg-emerald-600 text-white" },
 ];
 
-/** Alerta sonoro via Web Audio API (sem arquivo de áudio). */
-function playAlert(ctx: AudioContext) {
-  const t = ctx.currentTime;
-  [0, 0.25, 0.5].forEach((offset, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.value = i === 2 ? 1320 : 880;
-    gain.gain.setValueAtTime(0.0001, t + offset);
-    gain.gain.exponentialRampToValueAtTime(0.25, t + offset + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.2);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t + offset);
-    osc.stop(t + offset + 0.22);
-  });
-}
-
 export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardOrder[]; storeName: string }) {
   const [orders, setOrders] = useState(initialOrders);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [soundOn, setSoundOn] = useState(false);
+  // Som já vem ligado; só fica desligado se a loja desligar neste aparelho.
+  const [soundOn, setSoundOn] = useState(true);
+  // false = o navegador ainda espera um toque na tela para liberar o áudio (ex: página recarregada).
+  const [soundReady, setSoundReady] = useState(true);
+  const soundOnRef = useRef(true);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<AudioContext | null>(null);
 
   const pendingCount = orders.filter((o) => o.status === "PENDING").length;
 
@@ -49,7 +43,7 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
     onNew: (order) => {
       setOrders((prev) => upsertOrder(prev, order));
       setToast(`Novo pedido #${order.number} — ${order.customerName}`);
-      if (audioRef.current) playAlert(audioRef.current);
+      if (soundOnRef.current) playOrderAlert();
     },
     onUpdated: (order) => setOrders((prev) => upsertOrder(prev, order)),
     onConnect: resync,
@@ -58,7 +52,7 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
   // Repete o alerta a cada 15s enquanto houver pedidos aguardando aceite.
   useEffect(() => {
     if (!soundOn || pendingCount === 0) return;
-    const id = setInterval(() => audioRef.current && playAlert(audioRef.current), 15_000);
+    const id = setInterval(() => playOrderAlert(), 15_000);
     return () => clearInterval(id);
   }, [soundOn, pendingCount]);
 
@@ -82,12 +76,38 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
     return () => clearTimeout(id);
   }, [toast]);
 
-  function enableSound() {
-    // Navegadores só liberam áudio após um gesto do usuário.
-    audioRef.current ??= new AudioContext();
-    audioRef.current.resume();
-    playAlert(audioRef.current);
-    setSoundOn(true);
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
+
+  // Liga o som sozinho ao abrir o painel. Se o navegador ainda não liberou o áudio (página recarregada,
+  // sem passar pelo login), o primeiro toque ou tecla em qualquer lugar da tela libera.
+  useEffect(() => {
+    setSoundOn(isOrderAlertEnabled());
+    unlockOrderAlert();
+    const sync = () => setSoundReady(isOrderAlertReady());
+    const off = onOrderAlertStateChange(sync);
+    const timer = setTimeout(sync, 400);
+    const unlock = () => unlockOrderAlert();
+    document.addEventListener("pointerdown", unlock);
+    document.addEventListener("keydown", unlock);
+    return () => {
+      off();
+      clearTimeout(timer);
+      document.removeEventListener("pointerdown", unlock);
+      document.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  function toggleSound() {
+    const next = !soundOn;
+    setOrderAlertEnabled(next);
+    setSoundOn(next);
+    if (next) {
+      unlockOrderAlert();
+      // Amostra do aviso ao religar, para a loja conferir o volume.
+      setTimeout(() => playOrderAlert(), 150);
+    }
   }
 
   async function changeStatus(order: BoardOrder, status: OrderStatusValue) {
@@ -175,13 +195,21 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
           </span>
         </div>
         <div className="flex-1" />
-        {!soundOn ? (
-          <button onClick={enableSound} className="btn-primary animate-pulse py-3">
-            🔔 Ativar alerta sonoro
-          </button>
-        ) : (
-          <span className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-stone-600 shadow-card">🔔 Som ativo</span>
+        {soundOn && !soundReady && (
+          <span className="animate-pulse rounded-xl bg-mega-400 px-3 py-2 text-sm font-semibold text-ink-900 shadow-card" role="status">
+            👆 Toque em qualquer lugar da tela para liberar o som
+          </span>
         )}
+        <button
+          onClick={toggleSound}
+          aria-pressed={soundOn}
+          title={soundOn ? "Clique para desligar o aviso sonoro" : "Clique para ligar o aviso sonoro"}
+          className={`rounded-xl px-3 py-2 text-sm font-semibold shadow-card transition ${
+            soundOn ? "bg-white text-emerald-700 hover:bg-stone-50" : "bg-stone-200 text-stone-600 hover:bg-stone-300"
+          }`}
+        >
+          {soundOn ? "🔔 Som ligado" : "🔕 Som desligado"}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
