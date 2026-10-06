@@ -244,8 +244,42 @@ model TableSession {
   closedAt    DateTime?
   closedBy    String? // nome de quem fechou
   paidWith    PaymentMethod? // como foi pago no caixa
-  total       Int? // total cobrado no fechamento (centavos)
+  total       Int? // total cobrado no fechamento, já com desconto (centavos)
+  discount    Int            @default(0) // desconto da Mesa Premiada aplicado no fechamento
   orders      Order[]
+  mesaPremiada MesaPremiada?
 
   @@index([tableNumber, closedAt])
+}
+
+// Campanha "Mesa Premiada - Edição de Natal" (linha única de configuração).
+model CampanhaNatal {
+  id        Int      @id @default(1)
+  name      String   @default("Mesa Premiada - Edição de Natal")
+  active    Boolean  @default(true)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  weekdays  Int[] // dias ativos: 0=domingo ... 6=sábado
+  discount  Int      @default(5000) // centavos; conta menor ou igual sai de graça
+  // Só participam do sorteio as mesas desta faixa (inclusive)
+  minTable  Int      @default(1)
+  maxTable  Int      @default(26)
+  updatedAt DateTime @updatedAt
+}
+
+// Mesa sorteada de cada dia da campanha (uma por dia). Fica só no servidor: o cliente
+// não tem como descobrir a mesa premiada antes do pagamento no caixa.
+model MesaPremiada {
+  id              String        @id @default(cuid())
+  date            DateTime      @unique @db.Date // dia do evento (horário de Brasília)
+  tableNumber     Int
+  tableSessionId  String?       @unique // comanda sorteada
+  tableSession    TableSession? @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
+  trigger         String // "MANUAL" (botão Sortear) ou "FIRST_PAYMENT" (1º pagamento do dia)
+  drawnBy         String?
+  drawnAt         DateTime      @default(now())
+  awarded         Boolean       @default(false) // desconto já aplicado no caixa
+  originalTotal   Int?
+  discountApplied Int?
+  redeemedAt      DateTime?
 }

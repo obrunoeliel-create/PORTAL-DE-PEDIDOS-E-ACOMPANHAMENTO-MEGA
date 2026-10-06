@@ -84,6 +84,23 @@ Em balcão e mesa não há taxa, então o QR Code PIX aparece logo depois do ped
 - Não fecha com pedido "aguardando aceite" (aceite ou cancele antes). Trocar a mesa de um pedido leva-o para a comanda da mesa nova.
 - Financeiro mostra as mesas fechadas no dia por forma de pagamento.
 
+## Mesa Premiada - Edição de Natal
+
+Campanha para o atendimento na mesa: em cada dia de evento **uma mesa ocupada é sorteada** e ganha desconto ao pagar no caixa.
+
+- **Período:** 01/11/2026 a 27/12/2026, só **sextas, sábados e domingos** (horário de Brasília).
+- **Quem participa:** mesas **1 a 26** com comanda aberta no momento do sorteio.
+- **Sorteio (1 por dia):** botão **"Sortear agora"** em Portal → Comandas, ou automático no **primeiro pagamento de mesa do dia**.
+  O sorteio usa o gerador criptográfico do sistema e fica gravado em `MesaPremiada` (índice único por data).
+- **Prêmio:** conta acima de R$ 50,00 → R$ 50,00 de desconto; conta até R$ 50,00 → sai de graça. Calculado no servidor ao fechar a comanda.
+- **Caixa:** a mesa sorteada aparece com contorno dourado e selo "Mesa Premiada". Ao clicar em "Receber e fechar mesa" abre o
+  pop-up "MESA PREMIADA! 🎄🎁" com valor original, desconto e valor final, tocando sinos + fanfarra (Web Audio, com reserva em HTML5 Audio).
+- **Sigilo:** a mesa sorteada só existe no servidor e nas telas com login. O cliente só vê o prêmio no acompanhamento **depois** do pagamento.
+- **Financeiro:** mostra o total de descontos concedidos no dia.
+
+Configuração na tabela `CampanhaNatal` (linha `id = 1`): `active`, `startDate`, `endDate`, `weekdays` (0=domingo … 6=sábado),
+`discount` (centavos), `minTable`, `maxTable`. Regras em `src/lib/mesa-premiada.ts`.
+
 ## Cadastro de clientes (opcional)
 
 - Na chegada o cliente pode **entrar**, **se cadastrar** ou **pedir sem cadastro**.

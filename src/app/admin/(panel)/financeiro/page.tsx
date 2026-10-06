@@ -32,7 +32,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     prisma.tableSession.groupBy({
       by: ["paidWith"],
       where: { closedAt: { gte: start, lt: end } },
-      _sum: { total: true },
+      _sum: { total: true, discount: true },
       _count: true,
     }),
   ]);
@@ -46,6 +46,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     return { label: PAYMENT_LABEL[m], total: row?._sum.total ?? 0, count: row?._count ?? 0 };
   });
   const tablesTotal = tablesClosed.reduce((a, r) => a + (r._sum.total ?? 0), 0);
+  const prizeDiscounts = tablesClosed.reduce((a, r) => a + (r._sum.discount ?? 0), 0);
   const tableRows = (["CASH", "CARD", "PIX"] as PaymentMethodValue[]).map((m) => {
     const row = tablesClosed.find((r) => r.paidWith === m);
     return { label: PAYMENT_LABEL[m].replace(" (na entrega)", ""), total: row?._sum.total ?? 0, count: row?._count ?? 0 };
@@ -79,6 +80,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <Breakdown title="Por forma de pagamento" rows={paymentRows} total={revenue} />
         <Breakdown title="Por canal" rows={typeRows} total={revenue} />
         <Breakdown title={`Mesas fechadas no caixa (${tablesClosed.reduce((a, r) => a + r._count, 0)})`} rows={tableRows} total={tablesTotal} />
+        {prizeDiscounts > 0 && (
+          <section className="card p-5">
+            <h2 className="mb-2 font-display text-lg font-bold">🎄 Mesa Premiada</h2>
+            <p className="text-sm text-stone-500">Desconto concedido hoje pela campanha (já abatido do valor recebido nas mesas):</p>
+            <p className="mt-1 font-display text-3xl font-extrabold text-brand-700">− {formatBRL(prizeDiscounts)}</p>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth";
 import { listOpenSessions } from "@/lib/table-sessions";
 import { toBoardOrder } from "@/lib/orders";
+import { campaignStateForStaff } from "@/lib/mesa-premiada";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,8 +11,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const auth = await requireApiSession();
   if (!auth.ok) return auth.response;
-  const sessions = await listOpenSessions();
+  const [sessions, campaign] = await Promise.all([listOpenSessions(), campaignStateForStaff()]);
   return NextResponse.json({
+    campaign,
     sessions: sessions.map((s) => ({
       id: s.id,
       tableNumber: s.tableNumber,

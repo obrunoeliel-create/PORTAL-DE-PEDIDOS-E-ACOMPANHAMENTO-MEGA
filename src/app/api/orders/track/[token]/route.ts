@@ -20,7 +20,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   if (!token.success) return jsonError("Pedido não encontrado.", 404);
 
   const [order, settings] = await Promise.all([
-    prisma.order.findUnique({ where: { trackingToken: token.data }, include: { items: true, tableSession: { select: { tableNumber: true, closedAt: true } } } }),
+    prisma.order.findUnique({ where: { trackingToken: token.data }, include: { items: true, tableSession: { select: { tableNumber: true, closedAt: true, discount: true, total: true } } } }),
     getStoreSettings(),
   ]);
   if (!order) return jsonError("Pedido não encontrado.", 404);
@@ -56,6 +56,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
             tableNumber: order.tableSession.tableNumber,
             ...(await tableSessionTotals(order.tableSessionId)),
             closed: !!order.tableSession.closedAt,
+            // Desconto da Mesa Premiada: só existe na comanda depois de fechada no caixa.
+            prizeDiscount: order.tableSession.closedAt ? order.tableSession.discount : 0,
+            paid: order.tableSession.closedAt ? order.tableSession.total : null,
           }
         : null,
   };

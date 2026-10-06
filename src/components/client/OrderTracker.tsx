@@ -165,7 +165,13 @@ export function OrderTracker({ token }: { token: string }) {
               </span>
             </div>
             <p className="p-4 text-sm text-stone-600">
-              {order.tableTab.closed ? (
+              {order.tableTab.closed && order.tableTab.prizeDiscount > 0 ? (
+                <span className="block rounded-xl bg-gradient-to-r from-[#0f5132] to-[#b3121d] p-3 text-center text-white">
+                  <span className="block font-display text-lg font-extrabold">🎄 MESA PREMIADA! 🎁</span>
+                  Você ganhou <strong>{formatBRL(order.tableTab.prizeDiscount)}</strong> de desconto. Valor pago:{" "}
+                  <strong>{formatBRL(order.tableTab.paid ?? 0)}</strong>. Obrigado pela visita!
+                </span>
+              ) : order.tableTab.closed ? (
                 <>✅ Conta paga e mesa fechada. Obrigado pela visita!</>
               ) : (
                 <>

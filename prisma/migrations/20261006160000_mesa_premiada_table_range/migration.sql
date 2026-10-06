@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "CampanhaNatal" ADD COLUMN     "maxTable" INTEGER NOT NULL DEFAULT 26,
+ADD COLUMN     "minTable" INTEGER NOT NULL DEFAULT 1;
+

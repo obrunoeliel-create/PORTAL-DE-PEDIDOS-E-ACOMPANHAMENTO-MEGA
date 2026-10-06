@@ -88,6 +88,19 @@ export default {
           "40%": { transform: "translateY(-9px) scale(1.06)" },
           "60%": { transform: "translateY(0) scale(0.97)" },
         },
+        confetti: {
+          "0%": { transform: "translateY(0) rotate(0deg)", opacity: "1" },
+          "100%": { transform: "translateY(110vh) rotate(720deg)", opacity: "0.9" },
+        },
+        pop: {
+          "0%": { transform: "scale(0.6)", opacity: "0" },
+          "70%": { transform: "scale(1.04)", opacity: "1" },
+          "100%": { transform: "scale(1)" },
+        },
+        glow: {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgb(255 220 10 / 0.7)" },
+          "50%": { boxShadow: "0 0 0 10px rgb(255 220 10 / 0)" },
+        },
         snow: {
           "0%": { transform: "translate(0, 0) rotate(0deg)", opacity: "0" },
           "10%": { opacity: "1" },
@@ -102,6 +115,9 @@ export default {
         marquee: "marquee 28s linear infinite",
         twinkle: "twinkle 1.6s ease-in-out infinite",
         snow: "snow 9s linear infinite",
+        confetti: "confetti 3s linear infinite",
+        pop: "pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2)",
+        glow: "glow 1.8s ease-out infinite",
         santa: "santa 14s linear infinite",
         bob: "bob 2.2s ease-in-out infinite",
         sway: "sway 2.6s ease-in-out infinite",

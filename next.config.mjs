@@ -10,6 +10,7 @@ const csp = [
   "font-src 'self'",
   "connect-src 'self' ws: wss:",
   "worker-src 'self'",
+  "media-src 'self' blob:",
   "manifest-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",

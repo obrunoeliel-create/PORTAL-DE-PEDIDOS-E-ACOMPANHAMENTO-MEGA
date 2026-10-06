@@ -156,4 +156,5 @@ export const deliveryFeeSchema = z.object({ deliveryFee: z.number().int().min(0)
 export const trackingTokenParam = z.string().regex(/^[A-Za-z0-9_-]{32}$/);
 
 /** Fechar a comanda da mesa: como o cliente pagou no caixa. */
-export const closeTableSchema = z.object({ paidWith: z.enum(["PIX", "CARD", "CASH"]) }).strict();
+// paidWith pode vir vazio quando a Mesa Premiada zera a conta (nada a receber).
+export const closeTableSchema = z.object({ paidWith: z.enum(["PIX", "CARD", "CASH"]).nullable().optional() }).strict();

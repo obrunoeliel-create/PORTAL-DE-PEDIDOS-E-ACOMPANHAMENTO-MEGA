@@ -79,5 +79,6 @@ export type TrackedOrder = {
   pix: { payload: string; key: string; holderName: string | null } | null;
   store: { name: string; whatsappNumber: string | null };
   /** Pedido na mesa: conta da comanda (todos os pedidos daquela mesa até a loja fechar). */
-  tableTab: { tableNumber: number; total: number; orders: number; closed: boolean } | null;
+  // prizeDiscount só vem preenchido DEPOIS do fechamento no caixa (o cliente não descobre o prêmio antes).
+  tableTab: { tableNumber: number; total: number; orders: number; closed: boolean; prizeDiscount: number; paid: number | null } | null;
 };
