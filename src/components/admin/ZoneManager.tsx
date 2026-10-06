@@ -91,7 +91,7 @@ export function ZoneManager({ initialZones }: { initialZones: Zone[] }) {
         <div>
           <h1 className="text-2xl font-extrabold sm:text-3xl">Taxas de entrega</h1>
           <p className="text-sm text-stone-500">
-            {activeCount} bairro(s) ativo(s). No checkout o cliente escolhe o bairro e a taxa entra sozinha no total. Bairro
+            {activeCount} ativo(s) · {zones.length - activeCount} pausado(s). No checkout o cliente escolhe o bairro e a taxa entra sozinha no total. Bairro
             fora da lista: a loja define a taxa no pedido.
           </p>
         </div>
@@ -154,6 +154,11 @@ export function ZoneManager({ initialZones }: { initialZones: Zone[] }) {
         <div className="border-b border-stone-100 bg-[#faf7f2] p-3">
           <input className="input" placeholder="Buscar bairro..." value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
+        <div className="hidden grid-cols-[1fr_9rem_6.5rem] gap-3 bg-ink-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white sm:grid">
+          <span>Bairro</span>
+          <span>Taxa de entrega</span>
+          <span className="text-center">Ações</span>
+        </div>
         <ul className="divide-y divide-stone-100">
           {shown.map((z) => (
             <ZoneRow key={`${z.id}-${z.fee}-${z.name}`} zone={z} busy={busy} onSave={update} onRemove={remove} />
@@ -178,37 +183,77 @@ function ZoneRow({
 }) {
   const [name, setName] = useState(zone.name);
   const [fee, setFee] = useState((zone.fee / 100).toFixed(2).replace(".", ","));
-  const feeCents = parseBRL(fee);
-  const dirty = name.trim() !== zone.name || feeCents !== zone.fee;
+
+  // Salva ao sair do campo ou apertar Enter (como no Multipedidos).
+  function commitName() {
+    const v = name.trim();
+    if (v.length >= 2 && v !== zone.name) onSave(zone, { name: v });
+    else setName(zone.name);
+  }
+  function commitFee() {
+    const cents = parseBRL(fee);
+    if (cents !== null && cents <= 20_000 && cents !== zone.fee) onSave(zone, { fee: cents });
+    else setFee((zone.fee / 100).toFixed(2).replace(".", ","));
+  }
+  const onEnter = (fn: () => void) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      fn();
+      (e.target as HTMLInputElement).blur();
+    }
+  };
 
   return (
-    <li className={`flex flex-wrap items-center gap-2 px-4 py-2.5 text-sm ${zone.active ? "" : "opacity-50"}`}>
-      <input className="input min-w-[10rem] flex-1 py-1.5" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} aria-label="Nome do bairro" />
-      <span className="text-stone-400">R$</span>
-      <input className="input w-24 py-1.5 text-right" value={fee} onChange={(e) => setFee(e.target.value)} inputMode="decimal" aria-label="Taxa" />
-      {dirty && (
+    <li
+      className={`grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-2.5 text-sm sm:grid-cols-[1fr_9rem_6.5rem] ${
+        zone.active ? "" : "bg-mega-100/70"
+      }`}
+    >
+      <input
+        className={`input py-2 font-medium uppercase ${zone.active ? "" : "text-stone-500 line-through"}`}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={commitName}
+        onKeyDown={onEnter(commitName)}
+        maxLength={80}
+        aria-label="Nome do bairro"
+      />
+      <div className="relative row-start-2 sm:row-start-auto">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">R$</span>
+        <input
+          className="input py-2 pl-9 text-right font-display font-bold"
+          value={fee}
+          onChange={(e) => setFee(e.target.value)}
+          onBlur={commitFee}
+          onKeyDown={onEnter(commitFee)}
+          inputMode="decimal"
+          aria-label={`Taxa de ${zone.name}`}
+        />
+      </div>
+      <div className="row-span-2 flex items-center justify-center gap-2 sm:row-span-1">
         <button
-          disabled={busy || feeCents === null || name.trim().length < 2}
-          onClick={() => onSave(zone, { name: name.trim(), fee: feeCents ?? zone.fee })}
-          className="btn-primary px-3 py-1.5 text-xs"
+          onClick={() => onSave(zone, { active: !zone.active })}
+          disabled={busy}
+          title={zone.active ? "Pausar bairro (some do checkout)" : "Reativar bairro"}
+          aria-label={zone.active ? `Pausar ${zone.name}` : `Reativar ${zone.name}`}
+          className={`grid h-10 w-10 place-items-center rounded-xl border-2 text-base transition disabled:opacity-50 ${
+            zone.active
+              ? "border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              : "border-mega-500 bg-mega-400 text-ink-900 hover:bg-mega-300"
+          }`}
         >
-          Salvar
+          {zone.active ? "⏸" : "▶"}
         </button>
-      )}
-      <span className="w-20 text-right font-display font-bold text-brand-700">{formatBRL(zone.fee)}</span>
-      <button
-        role="switch"
-        aria-checked={zone.active}
-        aria-label={zone.active ? "Desativar bairro" : "Ativar bairro"}
-        disabled={busy}
-        onClick={() => onSave(zone, { active: !zone.active })}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition ${zone.active ? "bg-emerald-500" : "bg-stone-300"}`}
-      >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${zone.active ? "left-[22px]" : "left-0.5"}`} />
-      </button>
-      <button onClick={() => onRemove(zone)} disabled={busy} className="px-1 text-stone-400 hover:text-brand-600" aria-label="Excluir bairro">
-        🗑
-      </button>
+        <button
+          onClick={() => onRemove(zone)}
+          disabled={busy}
+          title="Excluir bairro"
+          aria-label={`Excluir ${zone.name}`}
+          className="grid h-10 w-10 place-items-center rounded-xl border-2 border-brand-500 text-brand-600 transition hover:bg-brand-50 disabled:opacity-50"
+        >
+          🗑
+        </button>
+      </div>
     </li>
   );
 }
