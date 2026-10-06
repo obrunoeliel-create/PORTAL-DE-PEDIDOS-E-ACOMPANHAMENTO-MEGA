@@ -69,6 +69,25 @@ export default {
           "0%, 100%": { opacity: "1", transform: "scale(1)" },
           "50%": { opacity: "0.25", transform: "scale(0.7)" },
         },
+        // Papai Noel: entra pela direita, cruza a tela e some pela esquerda; depois uma pausa.
+        santa: {
+          "0%": { transform: "translateX(105vw)" },
+          "72%": { transform: "translateX(-110%)" },
+          "100%": { transform: "translateX(-110%)" },
+        },
+        bob: {
+          "0%, 100%": { transform: "translateY(0) rotate(-2deg)" },
+          "50%": { transform: "translateY(-12px) rotate(2deg)" },
+        },
+        sway: {
+          "0%, 100%": { transform: "rotate(-10deg)" },
+          "50%": { transform: "rotate(10deg)" },
+        },
+        hop: {
+          "0%, 100%": { transform: "translateY(0) scale(1)" },
+          "40%": { transform: "translateY(-9px) scale(1.06)" },
+          "60%": { transform: "translateY(0) scale(0.97)" },
+        },
         snow: {
           "0%": { transform: "translate(0, 0) rotate(0deg)", opacity: "0" },
           "10%": { opacity: "1" },
@@ -83,6 +102,10 @@ export default {
         marquee: "marquee 28s linear infinite",
         twinkle: "twinkle 1.6s ease-in-out infinite",
         snow: "snow 9s linear infinite",
+        santa: "santa 14s linear infinite",
+        bob: "bob 2.2s ease-in-out infinite",
+        sway: "sway 2.6s ease-in-out infinite",
+        hop: "hop 1.8s ease-in-out infinite",
       },
     },
   },

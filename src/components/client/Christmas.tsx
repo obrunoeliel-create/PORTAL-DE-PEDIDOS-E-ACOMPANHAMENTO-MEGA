@@ -31,7 +31,7 @@ export function ChristmasBanner() {
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-[#0f5132] via-[#b3121d] to-[#0f5132] text-white" role="marquee" aria-label="Vem aí a Mesa Premiada — Campanha de Natal e Fim de Ano. Aguardem!">
       <XmasLights />
-      <div className="flex w-max py-2.5 motion-safe:animate-marquee">
+      <div className="flex w-max py-2.5 animate-marquee">
         {strip(false)}
         {strip(true)}
       </div>
@@ -49,7 +49,7 @@ function XmasLights() {
       {Array.from({ length: 28 }, (_, i) => (
         <span
           key={i}
-          className="mt-0.5 h-2 w-2 rounded-full motion-safe:animate-twinkle"
+          className="mt-0.5 h-2 w-2 rounded-full animate-twinkle"
           style={{ background: colors[i % colors.length], animationDelay: `${(i % 7) * 0.25}s`, boxShadow: `0 0 6px ${colors[i % colors.length]}` }}
         />
       ))}
@@ -57,15 +57,85 @@ function XmasLights() {
   );
 }
 
-/** Neve caindo sobre o topo vermelho (só decoração, não bloqueia cliques). */
+/** Bonecos de Natal fixos no fundo do topo, cada um com seu movimento. */
+const FIGURES = [
+  { icon: "⛄", left: "3%", top: "8%", size: 44, anim: "animate-sway", delay: "0s" },
+  { icon: "🎄", left: "24%", top: "2%", size: 40, anim: "animate-hop", delay: "0.4s" },
+  { icon: "🎁", left: "45%", top: "9%", size: 34, anim: "animate-sway", delay: "0.8s" },
+  { icon: "🧝", left: "63%", top: "3%", size: 40, anim: "animate-hop", delay: "0.2s" },
+  { icon: "🔔", left: "80%", top: "8%", size: 34, anim: "animate-sway", delay: "0.6s" },
+  { icon: "☃️", left: "92%", top: "40%", size: 38, anim: "animate-hop", delay: "1s" },
+  { icon: "🦌", left: "-1%", top: "58%", size: 36, anim: "animate-hop", delay: "0.7s" },
+];
+
+function XmasFigures() {
+  return (
+    <>
+      {FIGURES.map((f) => (
+        <span
+          key={f.icon + f.left}
+          className={`absolute origin-bottom select-none opacity-60 drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)] ${f.anim}`}
+          style={{ left: f.left, top: f.top, fontSize: f.size, lineHeight: 1, animationDelay: f.delay }}
+        >
+          {f.icon}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** Papai Noel no trenó com as renas, cruzando o topo na horizontal e deixando um rastro de brilho. */
+function SantaFlight() {
+  const sparkles = [
+    { left: "4%", top: "-30%", size: 20, delay: "0s" },
+    { left: "16%", top: "45%", size: 14, delay: "0.3s" },
+    { left: "28%", top: "-45%", size: 16, delay: "0.6s" },
+    { left: "40%", top: "30%", size: 12, delay: "0.15s" },
+    { left: "52%", top: "-25%", size: 14, delay: "0.45s" },
+    { left: "64%", top: "40%", size: 10, delay: "0.75s" },
+    { left: "76%", top: "-35%", size: 11, delay: "0.2s" },
+    { left: "88%", top: "20%", size: 8, delay: "0.55s" },
+  ];
+  return (
+    // Anima mesmo com "reduzir movimento" ligado no sistema: é a decoração pedida pela loja, lenta e só no topo.
+    <div className="absolute left-0 top-[26%] w-max animate-santa">
+      <div className="flex items-center animate-bob">
+        {/* As renas e o trenó olham para a esquerda: voam da direita para a esquerda. */}
+        <span className="text-[44px] leading-none drop-shadow-[0_3px_6px_rgba(0,0,0,0.35)] sm:text-[56px]">🦌🦌🦌</span>
+        <span className="relative -ml-1 text-[48px] leading-none drop-shadow-[0_3px_6px_rgba(0,0,0,0.35)] sm:text-[60px]">
+          🛷
+          <span className="absolute -top-[0.55em] left-[0.18em] text-[0.8em]">🎅</span>
+        </span>
+        {/* Rastro de brilho */}
+        <span className="relative ml-1 block h-10 w-56 sm:w-72">
+          <span className="absolute left-0 top-1/2 h-2 w-full -translate-y-1/2 rounded-full bg-gradient-to-r from-mega-200 via-mega-300/60 to-transparent blur-[2px]" />
+          <span className="absolute left-0 top-1/2 h-0.5 w-4/5 -translate-y-1/2 rounded-full bg-gradient-to-r from-white to-transparent" />
+          {sparkles.map((s, i) => (
+            <span
+              key={i}
+              className="absolute text-mega-200 animate-twinkle"
+              style={{ left: s.left, top: s.top, fontSize: s.size, animationDelay: s.delay, textShadow: "0 0 8px #ffdc0a, 0 0 14px #fff" }}
+            >
+              {i % 3 === 0 ? "✨" : "✦"}
+            </span>
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Decoração do topo vermelho: neve, bonecos de Natal e o Papai Noel voando (não bloqueia cliques). */
 export function SnowLayer() {
   if (!isSeason()) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <XmasFigures />
+      <SantaFlight />
       {Array.from({ length: 22 }, (_, i) => (
         <span
           key={i}
-          className="absolute top-[-10%] text-white/80 motion-safe:animate-snow"
+          className="absolute top-[-10%] text-white/80 animate-snow"
           style={{
             left: `${(i * 37) % 100}%`,
             fontSize: `${8 + ((i * 7) % 10)}px`,

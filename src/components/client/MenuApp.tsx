@@ -182,8 +182,8 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
                 </span>
                 {settings.isOpen ? "Aberto agora" : "Fechado no momento"}
               </span>
-              <h1 className="mt-2 text-3xl font-extrabold leading-none sm:text-4xl">{settings.storeName}</h1>
-              <p className="mt-1.5 text-sm text-white/80 sm:text-base">Esfihas, pizzas, lanches e mais 🔥</p>
+              <h1 className="mt-2 text-3xl font-extrabold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] sm:text-4xl">{settings.storeName}</h1>
+              <p className="mt-1.5 text-sm text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)] sm:text-base">Esfihas, pizzas, lanches e mais 🔥</p>
             </div>
           </div>
 
