@@ -27,6 +27,24 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   return { ok: true };
 }
 
+/** Só consulta: o contador já estourou? Não conta a requisição atual. */
+export function rateLimitCheck(key: string, limit: number): RateLimitResult {
+  const now = Date.now();
+  const bucket = store.get(key);
+  if (bucket && bucket.resetAt > now && bucket.count >= limit) {
+    return { ok: false, retryAfterSec: Math.ceil((bucket.resetAt - now) / 1000) };
+  }
+  return { ok: true };
+}
+
+/** Registra uma falha (ex: senha errada). Usado junto com rateLimitCheck para contar só os erros. */
+export function rateLimitFail(key: string, windowMs: number) {
+  const now = Date.now();
+  const bucket = store.get(key);
+  if (!bucket || bucket.resetAt <= now) store.set(key, { count: 1, resetAt: now + windowMs });
+  else bucket.count++;
+}
+
 /** Zera um contador (ex: a loja redefiniu a senha do cliente, então ele pode tentar de novo). */
 export function clearRateLimit(key: string) {
   store.delete(key);
