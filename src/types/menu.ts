@@ -29,6 +29,8 @@ export type PublicSettings = {
   isOpen: boolean;
   whatsappNumber: string | null;
   pixEnabled: boolean;
+  /** Usuário do Instagram da loja, sem @ (null = não mostrar). */
+  instagram: string | null;
 };
 
 export type OrderMode =
@@ -67,4 +69,18 @@ export type CustomerProfile = {
     reference: string | null;
     zoneId: string | null;
   } | null;
+};
+
+/** Divulgação da Mesa Premiada no cardápio (só informações públicas da campanha). */
+export type CampaignInfo = {
+  name: string;
+  startDate: string; // AAAA-MM-DD
+  endDate: string;
+  weekdays: number[]; // 0=domingo ... 6=sábado
+  discount: number; // centavos
+  minTable: number;
+  maxTable: number;
+  started: boolean;
+  daysToStart: number;
+  eventToday: boolean;
 };

@@ -1,10 +1,12 @@
 "use client";
 
+import type { CampaignInfo } from "@/types/menu";
+
 // Decoração de Natal / fim de ano. Some sozinha depois do Dia de Reis.
 const CAMPAIGN_UNTIL = new Date("2027-01-07T03:00:00Z"); // 07/01/2027 00:00 (Brasília)
 const isSeason = () => Date.now() < CAMPAIGN_UNTIL.getTime();
 
-const MESSAGES = [
+const BASE_MESSAGES = [
   "🎄 Vem aí a MESA PREMIADA",
   "🎁 Campanha de Natal e Fim de Ano",
   "⭐ Aguardem as surpresas!",
@@ -12,9 +14,25 @@ const MESSAGES = [
   "🎅 Prêmios para quem pede na mesa",
 ];
 
+const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+/** Com a campanha cadastrada, a faixa anuncia o período e o prêmio de verdade. */
+function bannerMessages(campaign: CampaignInfo | null): string[] {
+  if (!campaign) return BASE_MESSAGES;
+  const prize = `R$ ${(campaign.discount / 100).toFixed(0)}`;
+  return [
+    campaign.eventToday ? "🎉 HOJE TEM MESA PREMIADA" : campaign.started ? "🎄 MESA PREMIADA no ar" : "🎄 Vem aí a MESA PREMIADA",
+    `📅 De ${dm(campaign.startDate)} a ${dm(campaign.endDate)}`,
+    "🗓️ Sextas, sábados e domingos",
+    `🎁 Uma mesa por dia ganha ${prize} de desconto`,
+    "🔔 Mega Esfiha Jurema deseja Boas Festas",
+  ];
+}
+
 /** Faixa horizontal animada no topo do cardápio. */
-export function ChristmasBanner() {
+export function ChristmasBanner({ campaign = null }: { campaign?: CampaignInfo | null }) {
   if (!isSeason()) return null;
+  const MESSAGES = bannerMessages(campaign);
   const strip = (hidden: boolean) => (
     <div className="flex shrink-0 items-center gap-8 pr-8" aria-hidden={hidden}>
       {MESSAGES.map((m) => (

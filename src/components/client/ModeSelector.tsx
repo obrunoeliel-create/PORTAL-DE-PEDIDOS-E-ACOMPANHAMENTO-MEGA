@@ -1,11 +1,12 @@
 "use client";
 
-import type { OrderMode } from "@/types/menu";
+import type { CampaignInfo, OrderMode } from "@/types/menu";
 import { Logo } from "@/components/brand/Logo";
 
 type Props = {
   current: OrderMode | null;
   storeName: string;
+  campaign: CampaignInfo | null;
   /** Primeiro nome do cliente logado (null = sem cadastro neste aparelho). */
   customerName: string | null;
   onAccount: (tab: "login" | "register") => void;
@@ -17,7 +18,7 @@ type Props = {
  * Escolha entre delivery e retirada. Pedido na mesa NÃO é escolhido aqui:
  * só é possível lendo o QR Code que fica na mesa (que já traz o número travado).
  */
-export function ModeSelector({ storeName, customerName, onAccount, onSelect, onClose }: Props) {
+export function ModeSelector({ storeName, campaign, customerName, onAccount, onSelect, onClose }: Props) {
   return (
     <div className="overlay" role="dialog" aria-modal>
       <div className="sheet relative w-full max-w-md overflow-hidden">
@@ -38,6 +39,17 @@ export function ModeSelector({ storeName, customerName, onAccount, onSelect, onC
         </div>
 
         <div className="-mt-5 rounded-t-3xl bg-white p-6">
+          {campaign && (
+            <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#0f5132] via-[#b3121d] to-[#0f5132] p-3 text-white ring-2 ring-mega-400">
+              <span className="animate-wiggle text-3xl" aria-hidden>
+                🎁
+              </span>
+              <p className="text-sm leading-snug">
+                <strong className="block font-display text-base">🎄 Vem aí: Mesa Premiada</strong>
+                De {campaign.startDate.slice(8, 10)}/{campaign.startDate.slice(5, 7)} a {campaign.endDate.slice(8, 10)}/{campaign.endDate.slice(5, 7)}, uma mesa sorteada por dia ganha desconto!
+              </p>
+            </div>
+          )}
           {!customerName && (
             <div className="mb-5 rounded-2xl bg-[#faf7f2] p-4 text-center ring-1 ring-stone-100">
               <p className="text-sm font-semibold">Peça mais rápido com seu cadastro</p>

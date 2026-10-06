@@ -88,6 +88,10 @@ export default {
           "40%": { transform: "translateY(-9px) scale(1.06)" },
           "60%": { transform: "translateY(0) scale(0.97)" },
         },
+        shine: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-50% 0" },
+        },
         confetti: {
           "0%": { transform: "translateY(0) rotate(0deg)", opacity: "1" },
           "100%": { transform: "translateY(110vh) rotate(720deg)", opacity: "0.9" },
@@ -116,6 +120,7 @@ export default {
         twinkle: "twinkle 1.6s ease-in-out infinite",
         snow: "snow 9s linear infinite",
         confetti: "confetti 3s linear infinite",
+        shine: "shine 3.5s linear infinite",
         pop: "pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2)",
         glow: "glow 1.8s ease-out infinite",
         santa: "santa 14s linear infinite",

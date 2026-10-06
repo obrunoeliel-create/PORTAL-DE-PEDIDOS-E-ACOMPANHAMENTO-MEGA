@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { CartItem, CustomerProfile, DeliveryZoneOption, MenuCategory, MenuProduct, OrderMode, PublicSettings } from "@/types/menu";
+import type { CampaignInfo, CartItem, CustomerProfile, DeliveryZoneOption, MenuCategory, MenuProduct, OrderMode, PublicSettings } from "@/types/menu";
 import { formatBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL } from "@/lib/labels";
 import { buildWhatsAppUrl, formatPhone } from "@/lib/whatsapp";
@@ -13,6 +13,7 @@ import { ProductModal } from "./ProductModal";
 import { CartDrawer, LAST_ORDER_KEY } from "./CartDrawer";
 import { AccountSheet } from "./AccountSheet";
 import { ChristmasBanner, SnowLayer } from "./Christmas";
+import { CampaignCard, InstagramButton } from "./CampaignCard";
 
 const CART_KEY = "orderflow:cart:v1";
 
@@ -33,9 +34,11 @@ type Props = {
   zones: DeliveryZoneOption[];
   /** Cliente logado neste aparelho (cookie), ou null. */
   initialCustomer: CustomerProfile | null;
+  /** Campanha Mesa Premiada para divulgar (null = sem campanha no ar). */
+  campaign: CampaignInfo | null;
 };
 
-export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zones, initialCustomer }: Props) {
+export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zones, initialCustomer, campaign }: Props) {
   const [mode, setMode] = useState<OrderMode | null>(
     initialTable ? { type: "TABLE", tableNumber: initialTable.number, tableToken: initialTable.token } : null,
   );
@@ -139,7 +142,7 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
 
   return (
     <div className="min-h-screen pb-32">
-      <ChristmasBanner />
+      <ChristmasBanner campaign={campaign} />
       {/* ---------- Topo com a marca ---------- */}
       <header className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 text-white">
         <div className="bg-dots absolute inset-0" aria-hidden />
@@ -184,6 +187,16 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
               </span>
               <h1 className="mt-2 text-3xl font-extrabold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] sm:text-4xl">{settings.storeName}</h1>
               <p className="mt-1.5 text-sm text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)] sm:text-base">Esfihas, pizzas, lanches e mais 🔥</p>
+              {settings.instagram && (
+                <a
+                  href={`https://www.instagram.com/${settings.instagram}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold backdrop-blur transition hover:bg-white/25"
+                >
+                  📸 @{settings.instagram}
+                </a>
+              )}
             </div>
           </div>
 
@@ -257,6 +270,21 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
         </div>
       </div>
 
+      {/* ---------- Campanha Mesa Premiada + Instagram ---------- */}
+      {(campaign || settings.instagram) && (
+        <div className="mx-auto mt-3 max-w-3xl space-y-3 px-4">
+          {campaign && <CampaignCard campaign={campaign} instagram={settings.instagram} />}
+          {!campaign && settings.instagram && (
+            <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+              <p className="text-sm">
+                📸 <strong>Siga a gente no Instagram</strong> e marque a loja nas suas fotos!
+              </p>
+              <InstagramButton user={settings.instagram} />
+            </div>
+          )}
+        </div>
+      )}
+
       {tableQrInvalid && (
         <div className="mx-auto mt-2 max-w-3xl px-4">
           <div className="rounded-2xl bg-brand-50 p-4 text-sm font-medium text-brand-800 ring-1 ring-brand-200">
@@ -312,6 +340,12 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
         <div className="card flex flex-col items-center gap-3 p-6 text-center">
           <Logo size={64} className="shadow-card" />
           <p className="font-display text-lg font-bold">{settings.storeName}</p>
+          {settings.instagram && (
+            <>
+              <p className="-mt-1 text-sm text-stone-500">Siga, poste sua foto e marque a gente 💛</p>
+              <InstagramButton user={settings.instagram} />
+            </>
+          )}
           {settings.whatsappNumber && (
             <a
               href={buildWhatsAppUrl(settings.whatsappNumber, "Olá! Vim pelo cardápio online 😊")}
@@ -362,6 +396,7 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
         <ModeSelector
           current={mode}
           storeName={settings.storeName}
+          campaign={campaign}
           customerName={customer?.name.split(" ")[0] ?? null}
           onAccount={(tab) => setAccount({ tab })}
           onSelect={(m) => {

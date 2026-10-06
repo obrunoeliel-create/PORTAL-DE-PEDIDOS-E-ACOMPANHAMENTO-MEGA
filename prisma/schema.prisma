@@ -193,6 +193,7 @@ model StoreSettings {
   // Nome do titular exibido ao cliente (com acentos), ex: "Maria Brandão / A Mega Esfiha"
   pixHolderName   String?
   whatsappNumber  String?
+  instagram       String? // usuário do Instagram, sem @
   updatedAt       DateTime @updatedAt
 }
 

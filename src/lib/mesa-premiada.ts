@@ -138,3 +138,28 @@ export async function campaignStateForStaff() {
       : null,
   };
 }
+
+/**
+ * Divulgação da campanha no cardápio (dados PÚBLICOS: período, dias, prêmio e mesas participantes).
+ * Não inclui nada do sorteio. Devolve null se a campanha estiver desligada ou já tiver terminado.
+ */
+export async function publicCampaignInfo() {
+  const campaign = await getCampaign();
+  if (!campaign || !campaign.active) return null;
+  const day = brDay();
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (day.date.getTime() > campaign.endDate.getTime()) return null;
+  const started = day.date.getTime() >= campaign.startDate.getTime();
+  return {
+    name: campaign.name,
+    startDate: campaign.startDate.toISOString().slice(0, 10),
+    endDate: campaign.endDate.toISOString().slice(0, 10),
+    weekdays: campaign.weekdays,
+    discount: campaign.discount,
+    minTable: campaign.minTable,
+    maxTable: campaign.maxTable,
+    started,
+    daysToStart: started ? 0 : Math.round((campaign.startDate.getTime() - day.date.getTime()) / dayMs),
+    eventToday: isEventDay(campaign, day),
+  };
+}
