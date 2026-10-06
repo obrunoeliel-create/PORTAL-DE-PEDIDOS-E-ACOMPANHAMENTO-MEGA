@@ -10,6 +10,8 @@ import { orderInclude } from "@/lib/orders";
 import { emitToStaff } from "@/lib/socket-server";
 import { orderPixPayload } from "@/lib/pix";
 import { verifyTableToken } from "@/lib/tables";
+import { getCurrentCustomer } from "@/lib/customer-session";
+import { getOrOpenTableSession, tableSessionTotals } from "@/lib/table-sessions";
 import { buildOrderMessage, buildWhatsAppUrl, formatAddress } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
@@ -80,13 +82,22 @@ export async function POST(req: Request) {
     return changeForError();
   }
 
+  // Mesa: o pedido entra na comanda aberta da mesa (soma até a loja fechar a conta).
+  const tableSessionId = input.type === "TABLE" ? await getOrOpenTableSession(input.tableNumber) : null;
+
+  // Cliente com cadastro (cookie): o pedido fica vinculado à conta dele.
+  const customer = input.type === "TABLE" ? null : await getCurrentCustomer();
+
   const order = await prisma.order.create({
     data: {
+      customerId: customer?.id ?? null,
+      tableSessionId,
       // 192 bits aleatórios: o link de acompanhamento não pode ser adivinhado a partir do número do pedido.
       trackingToken: randomBytes(24).toString("base64url"),
       type: input.type,
       customerName: input.customerName,
-      customerPhone: input.customerPhone,
+      // Mesa: só o nome (atendimento na loja, sem telefone).
+      customerPhone: input.type === "TABLE" ? "" : input.customerPhone,
       tableNumber: input.type === "TABLE" ? input.tableNumber : null,
       ...(input.type === "DELIVERY" && {
         addressStreet: input.address.street,
@@ -106,6 +117,25 @@ export async function POST(req: Request) {
     },
     include: orderInclude,
   });
+
+  if (customer) {
+    // "Salvar este endereço no meu cadastro" (delivery com endereço novo)
+    const saveAddress = input.type === "DELIVERY" && input.saveAddress;
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        lastOrderAt: new Date(),
+        ...(saveAddress && {
+          addressStreet: input.address.street,
+          addressNumber: input.address.number,
+          addressDistrict: district,
+          addressComplement: input.address.complement ?? null,
+          addressReference: input.address.reference ?? null,
+          zoneId: input.address.zoneId ?? null,
+        }),
+      },
+    });
+  }
 
   // 4) Notifica o painel em tempo real.
   emitToStaff("order:new", order);
@@ -150,6 +180,8 @@ export async function POST(req: Request) {
       trackingToken: order.trackingToken,
       total: order.total,
       feePending: order.type === "DELIVERY" && order.deliveryFee === null,
+      // Conta da mesa até agora (todos os pedidos da comanda aberta)
+      tableTab: tableSessionId ? await tableSessionTotals(tableSessionId) : null,
       paymentMethod: order.paymentMethod,
       pix: pixPayload && settings.pixKey ? { payload: pixPayload, key: settings.pixKey, holderName: settings.pixHolderName } : null,
       whatsappUrl,

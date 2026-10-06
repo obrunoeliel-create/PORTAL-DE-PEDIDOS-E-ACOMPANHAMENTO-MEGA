@@ -26,3 +26,8 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   bucket.count++;
   return { ok: true };
 }
+
+/** Zera um contador (ex: a loja redefiniu a senha do cliente, então ele pode tentar de novo). */
+export function clearRateLimit(key: string) {
+  store.delete(key);
+}

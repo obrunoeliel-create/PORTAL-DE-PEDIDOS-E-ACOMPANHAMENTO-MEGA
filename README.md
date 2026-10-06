@@ -75,6 +75,29 @@ Em balcão e mesa não há taxa, então o QR Code PIX aparece logo depois do ped
 - Portal → **Mesas** (gerente): imprime os QR Codes (A4, 4 por folha) e gera um QR novo se algum vazar (o antigo para de funcionar).
 - Criar mesas: `npm run db:seed-tables` (padrão 50; `TABLE_COUNT=60` para mais). Mesas existentes não mudam.
 
+## Comanda da mesa
+
+- Todos os pedidos da mesma mesa entram numa **comanda** e somam num total único.
+- O cliente da mesa informa **só o nome** (sem telefone, sem endereço) e vê a conta da mesa no acompanhamento.
+- Portal → **Comandas**: mesas com conta aberta, pedidos e total. "Receber e fechar mesa" pede a forma de pagamento,
+  conclui os pedidos e fecha a comanda; o próximo pedido daquela mesa abre uma comanda nova, zerada.
+- Não fecha com pedido "aguardando aceite" (aceite ou cancele antes). Trocar a mesa de um pedido leva-o para a comanda da mesa nova.
+- Financeiro mostra as mesas fechadas no dia por forma de pagamento.
+
+## Cadastro de clientes (opcional)
+
+- Na chegada o cliente pode **entrar**, **se cadastrar** ou **pedir sem cadastro**.
+- Cadastro: nome, WhatsApp, **senha de 4 números** e, se quiser, o endereço. A senha existe para que ninguém veja
+  o endereço de outra pessoa só digitando o telefone dela (LGPD).
+- O aparelho fica lembrado por 180 dias (cookie HttpOnly): nas próximas visitas os dados já aparecem.
+- No delivery o carrinho pergunta "Entregar neste endereço?" (endereço salvo) ou permite informar outro e salvá-lo.
+- Senha errada: 5 tentativas por WhatsApp a cada 15 min. Portal → **Clientes**: busca e botão "Nova senha" para quem esqueceu.
+
+## Faixa de Natal
+
+`src/components/client/Christmas.tsx`: faixa animada "Vem aí a Mesa Premiada", luzinhas e neve no topo do cardápio.
+Os textos ficam em `MESSAGES`; a decoração some sozinha em 07/01/2027 (`CAMPAIGN_UNTIL`).
+
 ## WhatsApp automático (opt-in)
 
 No checkout de **delivery e balcão** o cliente pode marcar "Quero receber atualizações no WhatsApp". Se marcou, o sistema envia sozinho:

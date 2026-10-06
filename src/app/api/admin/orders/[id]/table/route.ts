@@ -5,6 +5,7 @@ import { changeTableSchema, cuidParam } from "@/lib/validators";
 import { PayloadError, jsonError, readJson, validationError } from "@/lib/http";
 import { ACTIVE_STATUSES, orderInclude, toBoardOrder } from "@/lib/orders";
 import { emitToStaff } from "@/lib/socket-server";
+import { getOrOpenTableSession } from "@/lib/table-sessions";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!parsed.success) return validationError(parsed.error);
   const { tableNumber } = parsed.data;
 
-  const order = await prisma.order.findUnique({ where: { id: id.data }, select: { type: true, status: true } });
+  const order = await prisma.order.findUnique({ where: { id: id.data }, select: { type: true, status: true, tableSessionId: true } });
   if (!order) return jsonError("Pedido não encontrado.", 404);
   if (order.type !== "TABLE") return jsonError("Somente pedidos de mesa têm número de mesa.", 409);
   if (!ACTIVE_STATUSES.includes(order.status)) return jsonError("Pedido já finalizado.", 409);
@@ -35,8 +36,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!table?.active) return jsonError(`A mesa ${tableNumber} não está cadastrada.`, 422);
 
   const updated = toBoardOrder(
-    await prisma.order.update({ where: { id: id.data }, data: { tableNumber }, include: orderInclude }),
+    await prisma.order.update({
+      where: { id: id.data },
+      // O pedido vai junto para a comanda aberta da mesa nova.
+      data: { tableNumber, tableSessionId: await getOrOpenTableSession(tableNumber) },
+      include: orderInclude,
+    }),
   );
+  if (order.tableSessionId) {
+    const left = await prisma.order.count({ where: { tableSessionId: order.tableSessionId } });
+    if (left === 0) await prisma.tableSession.deleteMany({ where: { id: order.tableSessionId, closedAt: null } });
+  }
   emitToStaff("order:updated", updated);
   return NextResponse.json({ order: updated });
 }

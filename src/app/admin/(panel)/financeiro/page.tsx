@@ -23,11 +23,18 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const { start, end } = dayRange(date);
   const where = { createdAt: { gte: start, lt: end }, status: { not: "CANCELED" as const } };
 
-  const [totals, byPayment, byType, canceled] = await Promise.all([
+  const [totals, byPayment, byType, canceled, tablesClosed] = await Promise.all([
     prisma.order.aggregate({ where, _sum: { total: true, deliveryFee: true }, _count: true }),
     prisma.order.groupBy({ by: ["paymentMethod"], where, _sum: { total: true }, _count: true }),
     prisma.order.groupBy({ by: ["type"], where, _sum: { total: true }, _count: true }),
     prisma.order.count({ where: { createdAt: { gte: start, lt: end }, status: "CANCELED" } }),
+    // Mesas fechadas no dia: como foi pago no caixa
+    prisma.tableSession.groupBy({
+      by: ["paidWith"],
+      where: { closedAt: { gte: start, lt: end } },
+      _sum: { total: true },
+      _count: true,
+    }),
   ]);
 
   const revenue = totals._sum.total ?? 0;
@@ -37,6 +44,11 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const paymentRows = (["PIX", "CARD", "CASH", "ON_SITE"] as PaymentMethodValue[]).map((m) => {
     const row = byPayment.find((r) => r.paymentMethod === m);
     return { label: PAYMENT_LABEL[m], total: row?._sum.total ?? 0, count: row?._count ?? 0 };
+  });
+  const tablesTotal = tablesClosed.reduce((a, r) => a + (r._sum.total ?? 0), 0);
+  const tableRows = (["CASH", "CARD", "PIX"] as PaymentMethodValue[]).map((m) => {
+    const row = tablesClosed.find((r) => r.paidWith === m);
+    return { label: PAYMENT_LABEL[m].replace(" (na entrega)", ""), total: row?._sum.total ?? 0, count: row?._count ?? 0 };
   });
   const typeRows = (["DELIVERY", "TABLE", "PICKUP"] as OrderTypeValue[]).map((t) => {
     const row = byType.find((r) => r.type === t);
@@ -66,6 +78,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <div className="grid gap-4 lg:grid-cols-2">
         <Breakdown title="Por forma de pagamento" rows={paymentRows} total={revenue} />
         <Breakdown title="Por canal" rows={typeRows} total={revenue} />
+        <Breakdown title={`Mesas fechadas no caixa (${tablesClosed.reduce((a, r) => a + r._count, 0)})`} rows={tableRows} total={tablesTotal} />
       </div>
     </div>
   );

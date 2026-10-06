@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getStoreSettings } from "@/lib/settings";
 import { orderPixPayload } from "@/lib/pix";
 import type { TrackedOrder } from "@/types/order";
+import { tableSessionTotals } from "@/lib/table-sessions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   if (!token.success) return jsonError("Pedido não encontrado.", 404);
 
   const [order, settings] = await Promise.all([
-    prisma.order.findUnique({ where: { trackingToken: token.data }, include: { items: true } }),
+    prisma.order.findUnique({ where: { trackingToken: token.data }, include: { items: true, tableSession: { select: { tableNumber: true, closedAt: true } } } }),
     getStoreSettings(),
   ]);
   if (!order) return jsonError("Pedido não encontrado.", 404);
@@ -49,6 +50,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
     createdAt: order.createdAt.toISOString(),
     pix: payload && settings.pixKey ? { payload, key: settings.pixKey, holderName: settings.pixHolderName } : null,
     store: { name: settings.storeName, whatsappNumber: settings.whatsappNumber },
+    tableTab:
+      order.tableSessionId && order.tableSession
+        ? {
+            tableNumber: order.tableSession.tableNumber,
+            ...(await tableSessionTotals(order.tableSessionId)),
+            closed: !!order.tableSession.closedAt,
+          }
+        : null,
   };
 
   return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });

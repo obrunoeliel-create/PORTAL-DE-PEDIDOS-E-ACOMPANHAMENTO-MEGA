@@ -153,14 +153,26 @@ export function OrderTracker({ token }: { token: string }) {
           </div>
         )}
 
-        {order.paymentMethod === "ON_SITE" && !canceled && order.status !== "COMPLETED" && (
-          <div className="flex gap-3 rounded-2xl bg-mega-100 p-4 text-sm text-ink-900 ring-1 ring-mega-300">
-            <span className="text-2xl" aria-hidden>
-              💰
-            </span>
-            <p>
-              <strong className="block font-display text-base">Pague no caixa antes de sair</strong>
-              Total do seu pedido: <strong>{formatBRL(order.total)}</strong>
+        {order.tableTab && (
+          <div className="card overflow-hidden">
+            <div className="flex items-center justify-between bg-ink-950 px-4 py-3 text-white">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-mega-400">Conta da mesa {order.tableTab.tableNumber}</p>
+                <p className="font-display text-3xl font-extrabold">{formatBRL(order.tableTab.total)}</p>
+              </div>
+              <span className="text-4xl" aria-hidden>
+                🧾
+              </span>
+            </div>
+            <p className="p-4 text-sm text-stone-600">
+              {order.tableTab.closed ? (
+                <>✅ Conta paga e mesa fechada. Obrigado pela visita!</>
+              ) : (
+                <>
+                  Soma de {order.tableTab.orders} {order.tableTab.orders === 1 ? "pedido" : "pedidos"} desta mesa. 💰{" "}
+                  <strong>Pague no caixa antes de sair.</strong>
+                </>
+              )}
             </p>
           </div>
         )}

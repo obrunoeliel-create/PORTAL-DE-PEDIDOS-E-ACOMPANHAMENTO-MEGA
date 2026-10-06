@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
-import type { CartItem, DeliveryZoneOption, OrderMode, PublicSettings } from "@/types/menu";
+import type { CartItem, CustomerProfile, DeliveryZoneOption, OrderMode, PublicSettings } from "@/types/menu";
 import type { PaymentMethodValue } from "@/types/order";
 import { formatBRL, parseBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
 import { itemTitle } from "@/lib/item-title";
 import { buildOrderMessage, buildWhatsAppUrl, formatAddress } from "@/lib/whatsapp";
 import { PixQrCode } from "./PixQrCode";
+import { Field, maskPhone } from "./form";
 
 type Props = {
   cart: CartItem[];
@@ -19,31 +20,15 @@ type Props = {
   settings: PublicSettings;
   /** Bairros atendidos com a taxa (vazio = cliente digita o bairro e a loja define a taxa). */
   zones: DeliveryZoneOption[];
+  /** Cliente logado (null = pedido sem cadastro). Nunca usado em pedido de mesa. */
+  customer: CustomerProfile | null;
+  onAccount: (tab: "login" | "register", prefill?: { name?: string; phone?: string }) => void;
+  onLogout: () => void;
   onClose: () => void;
   onOrderPlaced?: (order: { number: number; token: string }) => void;
 };
 
 const OTHER_ZONE = "__outro__";
-
-/** "11912345678" → "(11) 91234-5678" enquanto o cliente digita. */
-function maskPhone(v: string): string {
-  const d = v.replace(/\D/g, "").replace(/^55(?=\d{11})/, "").slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : "";
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-}
-
-function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-xs font-semibold text-stone-600">
-        {label} {required && <span className="text-brand-600">*</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs font-medium text-brand-700">{error}</p>}
-    </div>
-  );
-}
 
 type OrderResult = {
   number: number;
@@ -53,14 +38,19 @@ type OrderResult = {
   paymentMethod: PaymentMethodValue;
   pix: { payload: string; key: string; holderName: string | null } | null;
   whatsappUrl: string | null;
+  tableTab: { total: number; orders: number } | null;
 };
 
 /** Último pedido feito neste navegador — o cardápio mostra o atalho "Acompanhar pedido". */
 export const LAST_ORDER_KEY = "orderflow:lastOrder:v1";
 
-export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones, onClose, onOrderPlaced }: Props) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones, customer, onAccount, onLogout, onClose, onOrderPlaced }: Props) {
+  const isTable = mode?.type === "TABLE";
+  const [name, setName] = useState(customer?.name ?? "");
+  const [phone, setPhone] = useState(customer ? maskPhone(customer.phone) : "");
+  // Delivery com cadastro: "saved" = entregar no endereço salvo; "other" = digitar outro endereço.
+  const [addressChoice, setAddressChoice] = useState<"saved" | "other">(customer?.address ? "saved" : "other");
+  const [saveAddress, setSaveAddress] = useState(false);
   const [address, setAddress] = useState({ street: "", number: "", district: "", complement: "", reference: "" });
   const [payment, setPayment] = useState<PaymentMethodValue>(settings.pixEnabled ? "PIX" : "CARD");
   const [changeFor, setChangeFor] = useState("");
@@ -73,13 +63,36 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
   const [result, setResult] = useState<OrderResult | null>(null);
   const [zoneId, setZoneId] = useState("");
 
-  const zone = zones.find((z) => z.id === zoneId) ?? null;
+  // Quando o cliente entra/sai com o carrinho aberto, atualiza os dados.
+  useEffect(() => {
+    setName(customer?.name ?? "");
+    setPhone(customer ? maskPhone(customer.phone) : "");
+    setAddressChoice(customer?.address ? "saved" : "other");
+  }, [customer]);
+
+  // Endereço salvo: usa o bairro da lista se ainda estiver ativo; senão vira "outro bairro" (taxa pela loja).
+  const saved = customer?.address ?? null;
+  const savedZone = saved?.zoneId ? zones.find((z) => z.id === saved.zoneId) ?? null : null;
+  const usingSaved = mode?.type === "DELIVERY" && addressChoice === "saved" && !!saved;
+  const effective =
+    usingSaved && saved
+      ? {
+          street: saved.street,
+          number: saved.number,
+          district: savedZone ? savedZone.name : saved.district,
+          complement: saved.complement ?? "",
+          reference: saved.reference ?? "",
+        }
+      : address;
+  const effectiveZoneId = usingSaved ? savedZone?.id ?? "" : zoneId;
+
+  const zone = zones.find((z) => z.id === effectiveZoneId) ?? null;
   const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   // Delivery: taxa do bairro escolhido; sem bairro da lista, a loja define depois (null = a definir).
   // Valor só de exibição: o servidor sempre busca a taxa no cadastro.
   const deliveryFee = mode?.type === "DELIVERY" ? (zone ? zone.fee : null) : 0;
   const total = subtotal + (deliveryFee ?? 0);
-  const district = zone ? zone.name : address.district;
+  const district = zone ? zone.name : effective.district;
 
   const clearErr = (field: string) =>
     fieldErrors[field] && setFieldErrors(({ [field]: _removed, ...rest }) => rest);
@@ -92,8 +105,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
     const errs: Record<string, string> = {};
     if ((name.match(/\p{L}/gu) ?? []).length < 2) errs.customerName = "Informe seu nome.";
     const digits = phone.replace(/\D/g, "").replace(/^55(?=\d{11}$)/, "");
-    if (!/^[1-9][1-9]9\d{8}$/.test(digits)) errs.customerPhone = "Informe um WhatsApp válido com DDD. Ex: (11) 91234-5678";
-    if (mode?.type === "DELIVERY") {
+    if (!isTable && !/^[1-9][1-9]9\d{8}$/.test(digits)) errs.customerPhone = "Informe um WhatsApp válido com DDD. Ex: (11) 91234-5678";
+    if (mode?.type === "DELIVERY" && !usingSaved) {
       if (zones.length > 0 && !zoneId) errs["address.zoneId"] = "Selecione seu bairro.";
       if ((zones.length === 0 || zoneId === OTHER_ZONE) && address.district.trim().length < 2) errs["address.district"] = "Informe seu bairro.";
       if (address.street.trim().length < 3 || !/\p{L}/u.test(address.street)) errs["address.street"] = "Informe a rua.";
@@ -122,8 +135,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
       type: mode.type,
       tableNumber: mode.type === "TABLE" ? mode.tableNumber : null,
       customerName: name,
-      customerPhone: phone,
-      address: mode.type === "DELIVERY" ? formatAddress({ ...address, district }) : null,
+      customerPhone: isTable ? "" : phone,
+      address: mode.type === "DELIVERY" ? formatAddress({ ...effective, district }) : null,
       paymentMethod: mode.type === "TABLE" ? "ON_SITE" : payment,
       changeFor: mode.type !== "TABLE" && payment === "CASH" ? changeCents : null,
       items: cart.map((i) => ({ ...i, totalPrice: i.unitPrice * i.quantity })),
@@ -168,17 +181,18 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
       ...(mode.type === "TABLE" && { tableNumber: mode.tableNumber, tableToken: mode.tableToken }),
       ...(mode.type === "DELIVERY" && {
         address: {
-          street: address.street,
-          number: address.number,
+          street: effective.street,
+          number: effective.number,
           district,
           zoneId: zone?.id,
-          complement: address.complement || undefined,
-          reference: address.reference || undefined,
+          complement: effective.complement || undefined,
+          reference: effective.reference || undefined,
         },
       }),
       customerName: name,
-      customerPhone: phone,
       ...(mode.type !== "TABLE" && {
+        customerPhone: phone,
+        saveAddress: mode.type === "DELIVERY" && !!customer && addressChoice === "other" && saveAddress,
         paymentMethod: payment,
         changeFor: payment === "CASH" && changeCents ? changeCents : undefined,
         whatsappUpdates: waUpdates,
@@ -238,6 +252,15 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
               <strong className="font-display">{formatBRL(result.total)}</strong>
             </p>
           </div>
+          {result.tableTab && (
+            <div className="rounded-2xl bg-ink-950 p-4 text-left text-white">
+              <p className="text-xs uppercase tracking-widest text-mega-400">Conta da mesa até agora</p>
+              <p className="font-display text-3xl font-extrabold">{formatBRL(result.tableTab.total)}</p>
+              <p className="text-sm text-white/70">
+                {result.tableTab.orders} {result.tableTab.orders === 1 ? "pedido" : "pedidos"} nesta mesa · pode pedir mais à vontade!
+              </p>
+            </div>
+          )}
           {result.paymentMethod === "ON_SITE" && (
             <p className="rounded-2xl bg-mega-100 p-4 text-left text-sm text-ink-900 ring-1 ring-mega-300">
               💰 <strong>Pagamento no caixa:</strong> é só pagar presencialmente no caixa da loja antes de sair.
@@ -266,10 +289,19 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
           <Link href={`/pedido/${result.trackingToken}`} className="btn-primary w-full py-3.5 text-base">
             📦 {result.feePending && result.paymentMethod === "PIX" ? "Acompanhar pedido e pagar" : "Acompanhar meu pedido"}
           </Link>
-          {result.whatsappUrl && (
+          {result.whatsappUrl && !isTable && (
             <a href={result.whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-whatsapp w-full">
               💬 Enviar resumo no WhatsApp
             </a>
+          )}
+          {!customer && !isTable && (
+            <div className="rounded-2xl bg-[#faf7f2] p-4 text-left ring-1 ring-stone-100">
+              <p className="font-semibold">✨ Quer pedir mais rápido da próxima vez?</p>
+              <p className="mb-3 text-sm text-stone-500">Crie seu cadastro com estes dados — é só escolher uma senha de 4 números.</p>
+              <button onClick={() => onAccount("register", { name, phone })} className="btn-ghost w-full">
+                Criar meu cadastro
+              </button>
+            </div>
           )}
           <button onClick={onClose} className="btn-ghost w-full py-3">
             Voltar ao cardápio
@@ -314,7 +346,22 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
             )}
           </button>
 
-          <Card title="Itens">
+          <Card
+            title="Itens"
+            action={
+              cart.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Limpar o carrinho e recomeçar o pedido?")) setCart([]);
+                  }}
+                  className="text-xs font-semibold text-stone-500 underline hover:text-brand-600"
+                >
+                  🗑 Limpar carrinho
+                </button>
+              ) : undefined
+            }
+          >
             {cart.length === 0 ? (
               <p className="py-6 text-center text-stone-500">🛒 Seu carrinho está vazio.</p>
             ) : (
@@ -355,8 +402,23 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
             )}
           </Card>
 
-          <Card title="Seus dados">
+          <Card title={isTable ? "Seu nome" : "Seus dados"}>
             <div className="space-y-3">
+              {customer && !isTable ? (
+                <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-3 ring-1 ring-emerald-200">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-600 font-display font-bold text-white">
+                    {customer.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="font-semibold">{customer.name}</p>
+                    <p className="text-stone-500">{maskPhone(customer.phone)}</p>
+                  </div>
+                  <button type="button" onClick={onLogout} className="text-xs font-medium text-stone-500 underline">
+                    Não é você?
+                  </button>
+                </div>
+              ) : (
+              <>
               <Field id="f-customerName" label="Nome" required error={fieldErrors.customerName}>
                 <input
                   id="f-customerName"
@@ -371,6 +433,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
                   autoComplete="name"
                 />
               </Field>
+              {!isTable && (
               <Field id="f-customerPhone" label="WhatsApp com DDD" required error={fieldErrors.customerPhone}>
                 <input
                   id="f-customerPhone"
@@ -386,6 +449,14 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
                   autoComplete="tel"
                 />
               </Field>
+              )}
+              {!isTable && (
+                <button type="button" onClick={() => onAccount("login")} className="text-left text-sm font-semibold text-brand-600">
+                  👤 Já tem cadastro? Entrar e preencher automático
+                </button>
+              )}
+              </>
+              )}
               {mode && mode.type !== "TABLE" && (
                 <label
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition ${
@@ -412,6 +483,31 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
 
           {mode?.type === "DELIVERY" && (
             <Card title="Endereço de entrega">
+              {saved && (
+                <div className="mb-3 space-y-2">
+                  <p className="text-sm font-semibold">Entregar neste endereço?</p>
+                  <label className={`chip flex items-start gap-3 ${addressChoice === "saved" ? "chip-on" : "chip-off"}`}>
+                    <input type="radio" name="addr" className="mt-1 accent-brand-600" checked={addressChoice === "saved"} onChange={() => setAddressChoice("saved")} />
+                    <span className="text-sm">
+                      <span className="block font-semibold">🏠 Sim, no meu endereço</span>
+                      <span className="text-stone-600">
+                        {saved.street}, {saved.number}
+                        {saved.complement ? ` — ${saved.complement}` : ""} · {savedZone ? savedZone.name : saved.district}
+                      </span>
+                      {usingSaved && (
+                        <span className="mt-0.5 block font-semibold text-emerald-700">
+                          {savedZone ? `🛵 Taxa de entrega: ${formatBRL(savedZone.fee)}` : "A loja confirma a taxa de entrega."}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                  <label className={`chip flex items-center gap-3 ${addressChoice === "other" ? "chip-on" : "chip-off"}`}>
+                    <input type="radio" name="addr" className="accent-brand-600" checked={addressChoice === "other"} onChange={() => setAddressChoice("other")} />
+                    <span className="text-sm font-semibold">📍 Entregar em outro endereço</span>
+                  </label>
+                </div>
+              )}
+              {(!saved || addressChoice === "other") && (
               <div className="space-y-3">
                 {zones.length > 0 && (
                   <Field id="f-zone" label="Bairro" required error={fieldErrors["address.zoneId"]}>
@@ -488,7 +584,14 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
                 <Field id="f-reference" label="Ponto de referência (opcional)">
                   <input id="f-reference" className="input" placeholder="Perto de..." value={address.reference} onChange={(e) => setAddress({ ...address, reference: e.target.value })} maxLength={120} />
                 </Field>
+                {customer && (
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                    Salvar como meu endereço para os próximos pedidos
+                  </label>
+                )}
               </div>
+              )}
             </Card>
           )}
 
@@ -581,10 +684,13 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="card p-4">
-      <h3 className="mb-3 font-display text-base font-bold">{title}</h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="font-display text-base font-bold">{title}</h3>
+        {action}
+      </div>
       {children}
     </section>
   );

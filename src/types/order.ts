@@ -42,6 +42,8 @@ export type BoardOrder = {
   waAcceptedAt: string | null;
   waDispatchedAt: string | null;
   waError: string | null;
+  customerId: string | null;
+  tableSessionId: string | null;
   driverId: string | null;
   driver: { id: string; name: string; phone: string } | null;
   items: BoardOrderItem[];
@@ -76,4 +78,6 @@ export type TrackedOrder = {
   createdAt: string;
   pix: { payload: string; key: string; holderName: string | null } | null;
   store: { name: string; whatsappNumber: string | null };
+  /** Pedido na mesa: conta da comanda (todos os pedidos daquela mesa até a loja fechar). */
+  tableTab: { tableNumber: number; total: number; orders: number; closed: boolean } | null;
 };

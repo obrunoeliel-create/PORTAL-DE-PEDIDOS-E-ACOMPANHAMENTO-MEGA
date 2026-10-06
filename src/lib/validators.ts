@@ -59,14 +59,16 @@ const addressSchema = z
 
 const baseOrder = {
   customerName,
-  customerPhone: whatsappPhone,
   notes: optionalText(280),
   items: z.array(orderItemSchema).min(1, "Carrinho vazio.").max(50),
 };
 
-// Delivery e balcão: cliente escolhe o pagamento e pode aceitar atualizações no WhatsApp.
+// Delivery e balcão: WhatsApp obrigatório, pagamento e opção de receber atualizações.
 const remoteOrder = {
   ...baseOrder,
+  customerPhone: whatsappPhone,
+  // Cliente logado mudou o endereço e pediu para salvar no cadastro
+  saveAddress: z.boolean().default(false),
   paymentMethod: z.enum(["PIX", "CARD", "CASH"]),
   changeFor: cents.optional(),
   whatsappUpdates: z.boolean().default(false),
@@ -75,7 +77,7 @@ const remoteOrder = {
 export const createOrderSchema = z.discriminatedUnion("type", [
   z.object({ ...remoteOrder, type: z.literal("DELIVERY"), address: addressSchema }).strict(),
   z.object({ ...remoteOrder, type: z.literal("PICKUP") }).strict(),
-  // Mesa: sem forma de pagamento — é pago presencialmente no caixa antes de sair.
+  // Mesa: só o nome (sem telefone e sem endereço) e sem forma de pagamento — paga no caixa ao sair.
   // A mesa só é aceita com o token do QR Code impresso na mesa (conferido no servidor).
   z
     .object({
@@ -88,6 +90,34 @@ export const createOrderSchema = z.discriminatedUnion("type", [
 ]);
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+
+/** Senha do cliente: 4 dígitos (sem sequências óbvias). */
+const pin = z
+  .string({ required_error: "Crie uma senha de 4 números." })
+  .regex(/^\d{4}$/, "A senha deve ter 4 números.")
+  .refine((v) => !["0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999", "1234", "4321", "0123"].includes(v), "Senha muito fácil. Escolha outros 4 números.");
+
+/** Endereço salvo no cadastro (todo opcional: quem só retira no balcão não precisa). */
+export const customerAddressSchema = z
+  .object({
+    street: text(3, 120).refine((v) => /\p{L}/u.test(v), "Informe o nome da rua."),
+    number: text(1, 15),
+    district: text(2, 80),
+    complement: optionalText(80),
+    reference: optionalText(120),
+    zoneId: id.optional(),
+  })
+  .strict();
+
+export const customerRegisterSchema = z
+  .object({ name: customerName, phone: whatsappPhone, pin, address: customerAddressSchema.optional() })
+  .strict();
+
+export const customerLoginSchema = z
+  .object({ phone: whatsappPhone, pin: z.string().regex(/^\d{4}$/, "Senha inválida.") })
+  .strict();
+
+export const customerUpdateSchema = z.object({ address: customerAddressSchema }).strict();
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
 
 export const loginSchema = z
@@ -124,3 +154,6 @@ export const deliveryFeeSchema = z.object({ deliveryFee: z.number().int().min(0)
 
 /** Token do link de acompanhamento: 24 bytes aleatórios em base64url. */
 export const trackingTokenParam = z.string().regex(/^[A-Za-z0-9_-]{32}$/);
+
+/** Fechar a comanda da mesa: como o cliente pagou no caixa. */
+export const closeTableSchema = z.object({ paidWith: z.enum(["PIX", "CARD", "CASH"]) }).strict();

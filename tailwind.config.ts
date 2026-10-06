@@ -61,12 +61,28 @@ export default {
           "0%, 100%": { transform: "rotate(-4deg)" },
           "50%": { transform: "rotate(4deg)" },
         },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
+        twinkle: {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.25", transform: "scale(0.7)" },
+        },
+        snow: {
+          "0%": { transform: "translate(0, 0) rotate(0deg)", opacity: "0" },
+          "10%": { opacity: "1" },
+          "100%": { transform: "translate(30px, 420px) rotate(240deg)", opacity: "0" },
+        },
       },
       animation: {
         flash: "flash 1s ease-in-out infinite",
         "slide-up": "slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)",
         "fade-in": "fade-in 0.2s ease-out",
         wiggle: "wiggle 2.4s ease-in-out infinite",
+        marquee: "marquee 28s linear infinite",
+        twinkle: "twinkle 1.6s ease-in-out infinite",
+        snow: "snow 9s linear infinite",
       },
     },
   },

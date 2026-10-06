@@ -53,3 +53,18 @@ export type CartItem = {
   /** Preço exibido no cliente; o servidor SEMPRE recalcula a partir do banco. */
   unitPrice: number;
 };
+
+/** Cliente com cadastro (só chega ao navegador de quem está logado nele). */
+export type CustomerProfile = {
+  id: string;
+  name: string;
+  phone: string;
+  address: {
+    street: string;
+    number: string;
+    district: string;
+    complement: string | null;
+    reference: string | null;
+    zoneId: string | null;
+  } | null;
+};

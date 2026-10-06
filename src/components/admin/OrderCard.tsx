@@ -94,8 +94,16 @@ export function OrderCard({
       </header>
 
       <div>
-        <p className="font-medium">{order.customerName}</p>
-        <p className="text-stone-500">{order.customerPhone}</p>
+        <p className="flex items-center gap-1.5 font-medium">
+          {order.customerName}
+          {order.customerId && (
+            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800" title="Cliente com cadastro">
+              ⭐ Cadastro
+            </span>
+          )}
+        </p>
+        {order.customerPhone && <p className="text-stone-500">{order.customerPhone}</p>}
+        {order.type === "TABLE" && <p className="text-xs text-stone-500">🧾 Entra na comanda da mesa (veja em Comandas)</p>}
         {order.type === "DELIVERY" && (
           <p className="mt-1 text-stone-700">
             {order.addressStreet}, {order.addressNumber}
@@ -149,7 +157,7 @@ export function OrderCard({
         <FeeEditor key={order.deliveryFee ?? "pending"} order={order} pending={feePending} disabled={busy} onSave={(fee) => onSetFee(order, fee)} />
       )}
 
-      {canCancel && !feePending && (
+      {canCancel && !feePending && !!order.customerPhone && (
         <button
           onClick={notifyCustomer}
           className="w-full rounded-xl bg-[#25d366]/10 px-3 py-2 text-sm font-semibold text-[#128c4a] transition hover:bg-[#25d366]/20"

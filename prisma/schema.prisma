@@ -142,6 +142,12 @@ model Order {
   waError           String? // último erro de envio (mostrado no painel)
   driverId          String?
   driver            Driver?       @relation(fields: [driverId], references: [id])
+  // Cliente cadastrado que fez o pedido (null = pedido sem cadastro)
+  customerId        String?
+  customer          Customer?     @relation(fields: [customerId], references: [id])
+  // Comanda da mesa: pedidos da mesma mesa somam numa conta até a loja fechar
+  tableSessionId    String?
+  tableSession      TableSession? @relation(fields: [tableSessionId], references: [id])
   items             OrderItem[]
   acceptedAt        DateTime?
   dispatchedAt      DateTime?
@@ -209,4 +215,37 @@ model DeliveryZone {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Cliente com cadastro: entra com WhatsApp + senha de 4 dígitos e já encontra nome e endereço salvos.
+model Customer {
+  id                String    @id @default(cuid())
+  name              String
+  phone             String    @unique // só dígitos, com DDD (ex: 11912345678)
+  pinHash           String
+  addressStreet     String?
+  addressNumber     String?
+  addressDistrict   String?
+  addressComplement String?
+  addressReference  String?
+  zoneId            String? // bairro da lista de taxas, quando escolhido
+  orders            Order[]
+  lastOrderAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Comanda (conta) de uma mesa: aberta no primeiro pedido, fechada pela loja ao receber o pagamento.
+// Depois de fechada, o próximo pedido daquela mesa abre uma comanda nova (zerada).
+model TableSession {
+  id          String         @id @default(cuid())
+  tableNumber Int
+  openedAt    DateTime       @default(now())
+  closedAt    DateTime?
+  closedBy    String? // nome de quem fechou
+  paidWith    PaymentMethod? // como foi pago no caixa
+  total       Int? // total cobrado no fechamento (centavos)
+  orders      Order[]
+
+  @@index([tableNumber, closedAt])
 }

@@ -42,7 +42,7 @@ export function buildOrderMessage(o: MessageOrder): string {
   lines.push(o.number ? `*Pedido #${o.number}*` : "*Novo pedido*");
   lines.push("");
   lines.push(`Modalidade: ${ORDER_TYPE_LABEL[o.type]}${o.type === "TABLE" && o.tableNumber ? ` ${o.tableNumber}` : ""}`);
-  lines.push(`Cliente: ${o.customerName} (${o.customerPhone})`);
+  lines.push(o.customerPhone ? `Cliente: ${o.customerName} (${o.customerPhone})` : `Cliente: ${o.customerName}`);
   if (o.address) lines.push(`Endereço: ${o.address}`);
   lines.push("");
   for (const item of o.items) {

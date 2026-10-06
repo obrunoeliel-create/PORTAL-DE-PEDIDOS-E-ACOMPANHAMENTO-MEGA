@@ -6,6 +6,9 @@ import { Logo } from "@/components/brand/Logo";
 type Props = {
   current: OrderMode | null;
   storeName: string;
+  /** Primeiro nome do cliente logado (null = sem cadastro neste aparelho). */
+  customerName: string | null;
+  onAccount: (tab: "login" | "register") => void;
   onSelect: (mode: OrderMode) => void;
   onClose?: () => void;
 };
@@ -14,7 +17,7 @@ type Props = {
  * Escolha entre delivery e retirada. Pedido na mesa NÃO é escolhido aqui:
  * só é possível lendo o QR Code que fica na mesa (que já traz o número travado).
  */
-export function ModeSelector({ storeName, onSelect, onClose }: Props) {
+export function ModeSelector({ storeName, customerName, onAccount, onSelect, onClose }: Props) {
   return (
     <div className="overlay" role="dialog" aria-modal>
       <div className="sheet relative w-full max-w-md overflow-hidden">
@@ -30,11 +33,26 @@ export function ModeSelector({ storeName, onSelect, onClose }: Props) {
             </button>
           )}
           <Logo size={84} className="relative mx-auto shadow-lift ring-4 ring-white/90" />
-          <p className="relative mt-3 text-sm text-white/80">Bem-vindo à</p>
+          <p className="relative mt-3 text-sm text-white/80">{customerName ? `Que bom te ver de novo, ${customerName}! 👋` : "Bem-vindo à"}</p>
           <h2 className="relative text-2xl font-extrabold">{storeName}</h2>
         </div>
 
         <div className="-mt-5 rounded-t-3xl bg-white p-6">
+          {!customerName && (
+            <div className="mb-5 rounded-2xl bg-[#faf7f2] p-4 text-center ring-1 ring-stone-100">
+              <p className="text-sm font-semibold">Peça mais rápido com seu cadastro</p>
+              <p className="mb-3 text-xs text-stone-500">Nome e endereço já preenchidos em todo pedido.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => onAccount("login")} className="btn-ghost py-2.5">
+                  👤 Já tenho cadastro
+                </button>
+                <button onClick={() => onAccount("register")} className="btn-primary py-2.5">
+                  ✨ Me cadastrar
+                </button>
+              </div>
+              <p className="mt-2.5 text-xs text-stone-500">ou escolha abaixo e peça sem cadastro</p>
+            </div>
+          )}
           <h3 className="mb-4 text-center text-lg font-bold">Como você quer pedir?</h3>
           <div className="grid gap-3">
             <ModeButton icon="🛵" title="Delivery" subtitle="Receba no seu endereço" onClick={() => onSelect({ type: "DELIVERY" })} />

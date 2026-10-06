@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { CartItem, DeliveryZoneOption, MenuCategory, MenuProduct, OrderMode, PublicSettings } from "@/types/menu";
+import type { CartItem, CustomerProfile, DeliveryZoneOption, MenuCategory, MenuProduct, OrderMode, PublicSettings } from "@/types/menu";
 import { formatBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL } from "@/lib/labels";
 import { buildWhatsAppUrl, formatPhone } from "@/lib/whatsapp";
@@ -11,6 +11,8 @@ import { categoryIcon } from "@/components/brand/categoryIcon";
 import { ModeSelector } from "./ModeSelector";
 import { ProductModal } from "./ProductModal";
 import { CartDrawer, LAST_ORDER_KEY } from "./CartDrawer";
+import { AccountSheet } from "./AccountSheet";
+import { ChristmasBanner, SnowLayer } from "./Christmas";
 
 const CART_KEY = "orderflow:cart:v1";
 
@@ -29,9 +31,11 @@ type Props = {
   initialTable: { number: number; token: string } | null;
   tableQrInvalid: boolean;
   zones: DeliveryZoneOption[];
+  /** Cliente logado neste aparelho (cookie), ou null. */
+  initialCustomer: CustomerProfile | null;
 };
 
-export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zones }: Props) {
+export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zones, initialCustomer }: Props) {
   const [mode, setMode] = useState<OrderMode | null>(
     initialTable ? { type: "TABLE", tableNumber: initialTable.number, tableToken: initialTable.token } : null,
   );
@@ -45,6 +49,13 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
   const [cartOpen, setCartOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<{ number: number; token: string } | null>(null);
   const [justAdded, setJustAdded] = useState(false);
+  const [customer, setCustomer] = useState<CustomerProfile | null>(initialCustomer);
+  const [account, setAccount] = useState<{ tab: "login" | "register"; prefill?: { name?: string; phone?: string } } | null>(null);
+
+  async function logoutCustomer() {
+    await fetch("/api/customers/logout", { method: "POST" }).catch(() => {});
+    setCustomer(null);
+  }
   const loaded = useRef(false);
   const chipsRef = useRef<HTMLElement>(null);
   const scrollingTo = useRef<string | null>(null);
@@ -128,13 +139,37 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
 
   return (
     <div className="min-h-screen pb-32">
+      <ChristmasBanner />
       {/* ---------- Topo com a marca ---------- */}
       <header className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 text-white">
         <div className="bg-dots absolute inset-0" aria-hidden />
+        <SnowLayer />
         <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-mega-400/30 blur-3xl" aria-hidden />
         <div className="absolute -bottom-24 -left-16 h-60 w-60 rounded-full bg-mega-300/20 blur-3xl" aria-hidden />
 
         <div className="relative mx-auto max-w-3xl px-4 pb-12 pt-6 sm:pt-10">
+          {!tableLocked && (
+            <div className="mb-4 flex justify-end">
+              {customer ? (
+                <div className="flex items-center gap-2 rounded-full bg-white/15 py-1 pl-1 pr-3 text-sm backdrop-blur">
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-mega-400 font-display font-bold text-ink-900">
+                    {customer.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="font-semibold">Olá, {customer.name.split(" ")[0]}!</span>
+                  <button onClick={logoutCustomer} className="ml-1 text-xs text-white/70 underline hover:text-white">
+                    Sair
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAccount({ tab: "login" })}
+                  className="flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-semibold backdrop-blur transition hover:bg-white/25"
+                >
+                  👤 Entrar / Cadastrar
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-4 sm:gap-6">
             <Logo size={96} className="shadow-lift ring-4 ring-white/90" />
             <div className="min-w-0">
@@ -310,10 +345,25 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
         </div>
       )}
 
+      {account && (
+        <AccountSheet
+          initialTab={account.tab}
+          zones={zones}
+          prefill={account.prefill}
+          onClose={() => setAccount(null)}
+          onDone={(c) => {
+            setCustomer(c);
+            setAccount(null);
+          }}
+        />
+      )}
+
       {modeOpen && !tableLocked && (
         <ModeSelector
           current={mode}
           storeName={settings.storeName}
+          customerName={customer?.name.split(" ")[0] ?? null}
+          onAccount={(tab) => setAccount({ tab })}
           onSelect={(m) => {
             setMode(m);
             setModeOpen(false);
@@ -339,6 +389,9 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
           onChangeMode={tableLocked ? undefined : () => setModeOpen(true)}
           settings={settings}
           zones={zones}
+          customer={tableLocked ? null : customer}
+          onAccount={(tab, prefill) => setAccount({ tab, prefill })}
+          onLogout={logoutCustomer}
           onClose={() => setCartOpen(false)}
           onOrderPlaced={setLastOrder}
         />
