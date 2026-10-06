@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/auth";
 import { deliveryZoneImportSchema } from "@/lib/validators";
 import { PayloadError, jsonError, readJson, validationError } from "@/lib/http";
-import { findZoneByName, listZones, parseZoneList } from "@/lib/delivery-zones";
+import { listZones, parseZoneList } from "@/lib/delivery-zones";
 
 export const runtime = "nodejs";
 
@@ -27,18 +27,23 @@ export async function POST(req: Request) {
 
   let created = 0;
   let updated = 0;
-  await prisma.$transaction(async (tx) => {
-    for (const z of zones) {
-      const existing = await findZoneByName(z.name);
-      if (existing) {
-        await tx.deliveryZone.update({ where: { id: existing.id }, data: { fee: z.fee, active: true } });
-        updated++;
-      } else {
-        await tx.deliveryZone.create({ data: z });
-        created++;
+  // Tudo ou nada: uma lista com erro não deixa metade importada. Tempo maior que o padrão (5s)
+  // porque listas longas fazem muitas idas ao banco.
+  await prisma.$transaction(
+    async (tx) => {
+      for (const z of zones) {
+        const existing = await tx.deliveryZone.findFirst({ where: { name: { equals: z.name, mode: "insensitive" } } });
+        if (existing) {
+          await tx.deliveryZone.update({ where: { id: existing.id }, data: { fee: z.fee, active: true } });
+          updated++;
+        } else {
+          await tx.deliveryZone.create({ data: z });
+          created++;
+        }
       }
-    }
-  });
+    },
+    { timeout: 60_000, maxWait: 10_000 },
+  );
 
   return NextResponse.json({ created, updated, invalid, zones: await listZones() });
 }
