@@ -6,6 +6,7 @@ import { PayloadError, jsonError, readJson, validationError } from "@/lib/http";
 import { STATUS_TRANSITIONS, orderInclude, statusTimestamp, toBoardOrder } from "@/lib/orders";
 import { emitToStaff } from "@/lib/socket-server";
 import { notifyStatusChange } from "@/lib/order-notify";
+import { callOrderOnPanel } from "@/lib/call-panel";
 
 export const runtime = "nodejs";
 
@@ -50,5 +51,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   emitToStaff("order:updated", order);
   // WhatsApp automático em segundo plano: não atrasa o operador; o resultado chega ao painel via socket.
   void notifyStatusChange(id.data, next);
+  // Retirada no balcão pronta: chama o número e o primeiro nome na TV (painel de senhas), também em segundo plano.
+  if (current.type === "PICKUP" && next === "OUT_FOR_DELIVERY") {
+    void callOrderOnPanel({ number: order.number, customerName: order.customerName });
+  }
   return NextResponse.json({ order });
 }
