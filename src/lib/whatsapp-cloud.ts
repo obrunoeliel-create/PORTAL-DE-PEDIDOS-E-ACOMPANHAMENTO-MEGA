@@ -74,10 +74,13 @@ export async function sendTemplate(params: { phone: string; template: string | u
     });
     const data = (await res.json().catch(() => ({}))) as {
       messages?: { id: string }[];
-      error?: { message?: string; code?: number };
+      error?: { message?: string; code?: number; error_subcode?: number; error_data?: { details?: string } };
     };
     if (!res.ok) {
-      const msg = data.error?.message ?? `HTTP ${res.status}`;
+      // Código + detalhe da Meta ajudam a achar a causa (ex: token sem permissão, modelo inexistente).
+      const e = data.error;
+      const code = e?.code ? ` (código ${e.code}${e.error_subcode ? `/${e.error_subcode}` : ""})` : "";
+      const msg = `${e?.message ?? `HTTP ${res.status}`}${code}${e?.error_data?.details ? ` — ${e.error_data.details}` : ""}`;
       return { ok: false, error: `Meta: ${msg}`.slice(0, 300) };
     }
     return { ok: true, messageId: data.messages?.[0]?.id };
