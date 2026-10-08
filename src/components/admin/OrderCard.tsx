@@ -6,6 +6,7 @@ import { formatBRL, parseBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
 import { itemTitle } from "@/lib/item-title";
 import { buildCustomerUpdateMessage, buildWhatsAppUrl, toWhatsAppNumber } from "@/lib/whatsapp";
+import { printDocument } from "@/lib/print-client";
 
 const TYPE_BADGE: Record<BoardOrder["type"], string> = {
   DELIVERY: "bg-sky-100 text-sky-800",
@@ -88,9 +89,19 @@ export function OrderCard({
             {minutesSince(order.createdAt)} min
           </p>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TYPE_BADGE[order.type]}`}>
-          {order.type === "TABLE" ? `Mesa ${order.tableNumber}` : ORDER_TYPE_LABEL[order.type]}
-        </span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TYPE_BADGE[order.type]}`}>
+            {order.type === "TABLE" ? `Mesa ${order.tableNumber}` : ORDER_TYPE_LABEL[order.type]}
+          </span>
+          <button
+            type="button"
+            onClick={() => printDocument(`/admin/imprimir/pedido/${order.id}`)}
+            className="rounded-lg px-2 py-1 text-xs font-semibold text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-50"
+            title="Imprimir este pedido"
+          >
+            🖨️ Imprimir
+          </button>
+        </div>
       </header>
 
       <div>

@@ -13,6 +13,8 @@ import {
   setOrderAlertEnabled,
   unlockOrderAlert,
 } from "@/lib/order-alert";
+import { getPrintOnAccept, printDocument } from "@/lib/print-client";
+import { PrintSettings } from "./PrintButton";
 
 const COLUMNS: { status: OrderStatusValue; title: string; icon: string; dot: string; head: string }[] = [
   { status: "PENDING", title: STATUS_LABEL.PENDING, icon: "🔔", dot: "bg-brand-500", head: "bg-brand-600 text-white" },
@@ -126,6 +128,8 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
         return;
       }
       setOrders((prev) => upsertOrder(prev, data.order));
+      // Cupom da cozinha ao aceitar (se ligado neste aparelho).
+      if (status === "PREPARING" && getPrintOnAccept()) printDocument(`/admin/imprimir/pedido/${order.id}`);
     } catch {
       setError("Falha de conexão.");
     } finally {
@@ -200,6 +204,7 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
             👆 Toque em qualquer lugar da tela para liberar o som
           </span>
         )}
+        <PrintSettings />
         <button
           onClick={toggleSound}
           aria-pressed={soundOn}

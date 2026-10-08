@@ -6,6 +6,7 @@ import { formatBRL } from "@/lib/money";
 import { STATUS_LABEL } from "@/lib/labels";
 import { itemTitle } from "@/lib/item-title";
 import { useStaffSocket } from "./useStaffSocket";
+import { PrintButton } from "./PrintButton";
 import { PrizeModal, type PrizePreview } from "./PrizeModal";
 
 export type OpenSession = { id: string; tableNumber: number; openedAt: string; orders: BoardOrder[] };
@@ -267,6 +268,7 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
                     Há pedido aguardando aceite: aceite ou cancele antes de fechar.
                   </p>
                 )}
+                <PrintButton kind="mesa" id={s.id} label="🖨️ Imprimir conta" className="btn-ghost mb-2 w-full" />
                 {paying === s.id ? (
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">Como o cliente pagou {formatBRL(total)}?</p>

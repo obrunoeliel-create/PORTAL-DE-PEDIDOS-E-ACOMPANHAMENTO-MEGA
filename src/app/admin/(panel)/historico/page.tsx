@@ -5,6 +5,7 @@ import { requirePageSession } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
 import { itemTitle } from "@/lib/item-title";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL, STATUS_LABEL } from "@/lib/labels";
+import { PrintButton } from "@/components/admin/PrintButton";
 import {
   PAYMENTS,
   STATUSES,
@@ -257,6 +258,10 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
                       <a href={`/pedido/${o.trackingToken}`} target="_blank" rel="noopener" className="mt-3 inline-block text-brand-700 underline">
                         Abrir página de acompanhamento
                       </a>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <PrintButton kind="pedido" id={o.id} />
+                        {o.tableSessionId && <PrintButton kind="mesa" id={o.tableSessionId} label="🖨️ Conta da mesa" />}
+                      </div>
                     </section>
                   </div>
                 </details>
