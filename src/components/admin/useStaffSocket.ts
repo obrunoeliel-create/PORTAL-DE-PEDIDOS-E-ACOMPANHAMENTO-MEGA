@@ -7,6 +7,8 @@ import type { BoardOrder } from "@/types/order";
 type Handlers = {
   onNew?: (order: BoardOrder) => void;
   onUpdated?: (order: BoardOrder) => void;
+  /** Mesa Premiada: o sistema acabou de sortear uma mesa. */
+  onCampaign?: () => void;
   /** Chamado a cada (re)conexão — use para ressincronizar o estado. */
   onConnect?: () => void;
 };
@@ -31,6 +33,7 @@ export function useStaffSocket(handlers: Handlers) {
     socket.on("connect_error", () => setConnected(false));
     socket.on("order:new", (o: BoardOrder) => ref.current.onNew?.(o));
     socket.on("order:updated", (o: BoardOrder) => ref.current.onUpdated?.(o));
+    socket.on("campaign:updated", () => ref.current.onCampaign?.());
     return () => {
       socket.disconnect();
     };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { BoardOrder } from "@/types/order";
 import { formatBRL } from "@/lib/money";
 import { STATUS_LABEL } from "@/lib/labels";
@@ -18,6 +18,10 @@ export type CampaignState = {
   discount: number;
   minTable: number;
   maxTable: number;
+  drawStart: string;
+  drawEnd: string;
+  inWindow: boolean;
+  windowOver: boolean;
   draw: { tableNumber: number; sessionId: string | null; awarded: boolean; trigger: string } | null;
 };
 
@@ -70,7 +74,12 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
   }, []);
 
   // Qualquer pedido novo/atualizado pode mudar uma comanda: recarrega a lista.
-  const connected = useStaffSocket({ onNew: refresh, onUpdated: refresh, onConnect: refresh });
+  const connected = useStaffSocket({ onNew: refresh, onUpdated: refresh, onConnect: refresh, onCampaign: refresh });
+  // Reserva: confere a cada minuto (o sorteio automático acontece sozinho no horário).
+  useEffect(() => {
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -88,7 +97,7 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
   const openCheckout = (s: OpenSession) =>
     run(async () => {
       const p = await post(`/api/admin/table-sessions/${s.id}/checkout`);
-      await refresh(); // o sorteio pode ter acontecido agora (primeiro pagamento do dia)
+      await refresh();
       if (p.isPrize) setPrize({ sessionId: s.id, preview: p });
       else setPaying(s.id);
     });
@@ -170,13 +179,20 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
                   </p>
                 ) : (
                   <p className="text-sm text-white/90">
-                    Hoje é dia de sorteio entre as mesas {campaign.minTable} e {campaign.maxTable}! Ainda não há mesa sorteada —
-                    sorteie agora ou o sistema sorteia sozinho no primeiro pagamento de mesa do dia.
+                    {campaign.windowOver ? (
+                      <>Horário do sorteio encerrado ({campaign.drawStart} às {campaign.drawEnd}) sem mesa ocupada entre a {campaign.minTable} e a {campaign.maxTable}.</>
+                    ) : (
+                      <>
+                        Hoje tem sorteio entre as mesas {campaign.minTable} e {campaign.maxTable}, das <strong>{campaign.drawStart} às {campaign.drawEnd}</strong>. O
+                        sistema sorteia sozinho uma mesa ocupada, num horário surpresa dentro desse período.
+                        {campaign.inWindow && " Se preferir, sorteie agora."}
+                      </>
+                    )}
                   </p>
                 )}
               </div>
             </div>
-            {!draw && (
+            {!draw && campaign.inWindow && (
               <button onClick={drawNow} disabled={busy || sessions.length === 0} className="rounded-xl bg-mega-400 px-4 py-2.5 font-display font-bold text-ink-900 shadow-lift transition hover:bg-mega-300 disabled:opacity-50">
                 🎲 Sortear agora
               </button>

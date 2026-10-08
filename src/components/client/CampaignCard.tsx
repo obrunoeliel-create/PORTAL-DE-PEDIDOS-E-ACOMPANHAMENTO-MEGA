@@ -18,6 +18,9 @@ const WEEKDAY_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 /** [5, 6, 0] → "Sex/Sáb/Dom" (versão curta para telas pequenas). */
 const weekdaysShort = (days: number[]) => [1, 2, 3, 4, 5, 6, 0].filter((d) => days.includes(d)).map((d) => WEEKDAY_SHORT[d]).join("/");
 
+/** "18:00" → "18h", "22:30" → "22h30". */
+export const hourLabel = (hhmm: string) => hhmm.replace(/^0/, "").replace(/:00$/, "h").replace(":", "h");
+
 const brDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 export function instagramUrl(user: string) {
@@ -52,6 +55,7 @@ export function CampaignCard({ campaign, instagram }: { campaign: CampaignInfo; 
   const [open, setOpen] = useState(false);
   const prize = formatBRL(campaign.discount);
   const days = weekdaysText(campaign.weekdays);
+  const hours = `das ${hourLabel(campaign.drawStart)} às ${hourLabel(campaign.drawEnd)}`;
 
   const status = campaign.eventToday
     ? { text: "🎉 Hoje tem sorteio!", cls: "bg-mega-400 text-ink-900 animate-pulse" }
@@ -103,8 +107,8 @@ export function CampaignCard({ campaign, instagram }: { campaign: CampaignInfo; 
             <Fact
               icon="🗓️"
               label="Sorteios"
-              value={days.charAt(0).toUpperCase() + days.slice(1)}
-              short={weekdaysShort(campaign.weekdays)}
+              value={`${days.charAt(0).toUpperCase() + days.slice(1)}, ${hours}`}
+              short={`${weekdaysShort(campaign.weekdays)} · ${hourLabel(campaign.drawStart)}–${hourLabel(campaign.drawEnd)}`}
             />
             <Fact icon="🎁" label="Prêmio" value={`${prize} de desconto`} short={`${prize.replace(",00", "")} OFF`} />
           </ul>
@@ -124,7 +128,7 @@ export function CampaignCard({ campaign, instagram }: { campaign: CampaignInfo; 
               <Step n={1}>Sente em uma das mesas participantes ({campaign.minTable} a {campaign.maxTable}).</Step>
               <Step n={2}>Aponte a câmera para o QR Code da mesa e faça seu pedido por aqui.</Step>
               <Step n={3}>
-                Às {days}, uma das mesas ocupadas é sorteada. O resultado é surpresa: <strong>você descobre na hora de pagar no caixa!</strong>
+                Às {days}, {hours}, o sistema sorteia uma das mesas ocupadas. O resultado é surpresa: <strong>você descobre na hora de pagar no caixa!</strong>
               </Step>
               <Step n={4}>Ganhou? O desconto de {prize} entra na hora. Um prêmio por dia de campanha.</Step>
             </ol>

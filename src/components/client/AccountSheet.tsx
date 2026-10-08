@@ -21,6 +21,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
   const [tab, setTab] = useState(initialTab);
   const [name, setName] = useState(prefill?.name ?? "");
   const [phone, setPhone] = useState(maskPhone(prefill?.phone ?? ""));
+  const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [withAddress, setWithAddress] = useState(false);
@@ -46,6 +47,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
     if (tab === "register") {
       if (!hasName(name)) errs.name = "Informe seu nome.";
       if (pin !== pin2) errs.pin2 = "As senhas não são iguais.";
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) errs.email = "Informe um e-mail válido ou deixe em branco.";
       if (withAddress) {
         if (zones.length && !zoneId) errs.zone = "Selecione seu bairro.";
         if ((!zones.length || zoneId === OTHER) && addr.district.trim().length < 2) errs.district = "Informe o bairro.";
@@ -67,6 +69,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
               name,
               phone,
               pin,
+              ...(email.trim() && { email: email.trim() }),
               ...(withAddress && {
                 address: {
                   street: addr.street,
@@ -138,6 +141,11 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
           <Field id="acc-phone" label="WhatsApp com DDD" required error={errors.phone}>
             <input id="acc-phone" className={errInput(!!errors.phone)} value={phone} onChange={(e) => setPhone(maskPhone(e.target.value))} inputMode="tel" autoComplete="tel" placeholder="(11) 91234-5678" maxLength={16} />
           </Field>
+          {tab === "register" && (
+            <Field id="acc-email" label="E-mail (opcional)" error={errors.email}>
+              <input id="acc-email" type="email" className={errInput(!!errors.email)} value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} autoComplete="email" inputMode="email" placeholder="voce@email.com — recebe a confirmação" />
+            </Field>
+          )}
           <div className={tab === "register" ? "grid grid-cols-2 gap-2" : ""}>
             <Field id="acc-pin" label={tab === "register" ? "Crie uma senha (4 números)" : "Senha (4 números)"} required error={errors.pin}>
               <input id="acc-pin" type="password" className={`${errInput(!!errors.pin)} text-center font-display text-lg tracking-[0.5em]`} value={pin} onChange={(e) => setPin(onlyDigits(e.target.value))} inputMode="numeric" autoComplete={tab === "register" ? "new-password" : "current-password"} placeholder="••••" />

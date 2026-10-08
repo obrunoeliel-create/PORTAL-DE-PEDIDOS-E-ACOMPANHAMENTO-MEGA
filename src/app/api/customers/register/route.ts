@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { customerRegisterSchema } from "@/lib/validators";
 import { PayloadError, getClientIp, jsonError, readJson, tooManyRequests, validationError } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendCustomerWelcome } from "@/lib/welcome";
 import { CUSTOMER_COOKIE, customerCookieOptions, customerSelect, signCustomerToken, toProfile } from "@/lib/customer-session";
 
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   }
   const parsed = customerRegisterSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
-  const { name, phone, pin, address } = parsed.data;
+  const { name, phone, email, pin, address } = parsed.data;
 
   if (await prisma.customer.findUnique({ where: { phone }, select: { id: true } })) {
     return NextResponse.json(
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
     data: {
       name,
       phone,
+      email: email ?? null,
       pinHash: await bcrypt.hash(pin, 10),
       addressStreet: address?.street ?? null,
       addressNumber: address?.number ?? null,
@@ -54,6 +56,9 @@ export async function POST(req: Request) {
     },
     select: customerSelect,
   });
+
+  // Boas-vindas por WhatsApp e e-mail em segundo plano: não atrasa o cadastro.
+  void sendCustomerWelcome(customer.id);
 
   const res = NextResponse.json({ customer: toProfile(customer) }, { status: 201 });
   res.cookies.set(CUSTOMER_COOKIE, await signCustomerToken(customer.id), customerCookieOptions);

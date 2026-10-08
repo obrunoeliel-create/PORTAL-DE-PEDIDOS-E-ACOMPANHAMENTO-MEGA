@@ -80,6 +80,8 @@ export type CampaignInfo = {
   discount: number; // centavos
   minTable: number;
   maxTable: number;
+  drawStart: string; // "18:00"
+  drawEnd: string; // "22:30"
   started: boolean;
   daysToStart: number;
   eventToday: boolean;

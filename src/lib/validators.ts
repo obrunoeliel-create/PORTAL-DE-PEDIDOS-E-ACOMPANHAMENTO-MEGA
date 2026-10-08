@@ -109,8 +109,18 @@ export const customerAddressSchema = z
   })
   .strict();
 
+// E-mail opcional no cadastro (recebe a confirmação). Vazio = sem e-mail.
+const optionalEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .optional()
+  .transform((v) => v || undefined)
+  .pipe(z.string().email("Informe um e-mail válido ou deixe em branco.").optional());
+
 export const customerRegisterSchema = z
-  .object({ name: customerName, phone: whatsappPhone, pin, address: customerAddressSchema.optional() })
+  .object({ name: customerName, phone: whatsappPhone, email: optionalEmail, pin, address: customerAddressSchema.optional() })
   .strict();
 
 export const customerLoginSchema = z

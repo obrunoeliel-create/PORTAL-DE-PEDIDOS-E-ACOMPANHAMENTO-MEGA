@@ -223,6 +223,7 @@ model Customer {
   id                String    @id @default(cuid())
   name              String
   phone             String    @unique // só dígitos, com DDD (ex: 11912345678)
+  email             String? // opcional: recebe a confirmação do cadastro por e-mail
   pinHash           String
   addressStreet     String?
   addressNumber     String?
@@ -232,6 +233,10 @@ model Customer {
   zoneId            String? // bairro da lista de taxas, quando escolhido
   orders            Order[]
   lastOrderAt       DateTime?
+  // Boas-vindas do cadastro: quando foi enviada (ou o erro), por WhatsApp e por e-mail
+  welcomeWaAt       DateTime?
+  welcomeEmailAt    DateTime?
+  welcomeError      String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -265,6 +270,9 @@ model CampanhaNatal {
   // Só participam do sorteio as mesas desta faixa (inclusive)
   minTable  Int      @default(1)
   maxTable  Int      @default(26)
+  // Horário do sorteio nos dias de evento, em minutos desde a meia-noite (Brasília): 18:00 às 22:30
+  drawStartMinute Int @default(1080)
+  drawEndMinute   Int @default(1350)
   updatedAt DateTime @updatedAt
 }
 
@@ -276,7 +284,7 @@ model MesaPremiada {
   tableNumber     Int
   tableSessionId  String?       @unique // comanda sorteada
   tableSession    TableSession? @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
-  trigger         String // "MANUAL" (botão Sortear) ou "FIRST_PAYMENT" (1º pagamento do dia)
+  trigger         String // "AUTO" (sistema, no horário da campanha), "MANUAL" (botão Sortear) ou "FIRST_PAYMENT" (versão antiga)
   drawnBy         String?
   drawnAt         DateTime      @default(now())
   awarded         Boolean       @default(false) // desconto já aplicado no caixa

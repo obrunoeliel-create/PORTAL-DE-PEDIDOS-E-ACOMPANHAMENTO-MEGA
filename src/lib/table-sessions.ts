@@ -2,7 +2,7 @@ import "server-only";
 import type { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { orderInclude } from "./orders";
-import { calcPrize, ensureDrawAtPayment, pendingPrizeFor } from "./mesa-premiada";
+import { calcPrize, pendingPrizeFor } from "./mesa-premiada";
 
 /**
  * Comanda aberta da mesa (cria se não existir). Trava a linha da mesa durante a transação para
@@ -53,7 +53,6 @@ export async function previewTableCheckout(sessionId: string, by: string) {
   const session = await prisma.tableSession.findUnique({ where: { id: sessionId }, select: { tableNumber: true, closedAt: true } });
   if (!session) throw new TableSessionError("Comanda não encontrada.");
   if (session.closedAt) throw new TableSessionError("Esta mesa já foi fechada.");
-  await ensureDrawAtPayment(by);
   const { total } = await tableSessionTotals(sessionId);
   const prize = await pendingPrizeFor(sessionId);
   const calc = prize ? calcPrize(total, prize.discount) : { original: total, discount: 0, final: total };
@@ -66,7 +65,6 @@ export async function previewTableCheckout(sessionId: string, by: string) {
  * Se a comanda é a Mesa Premiada do dia, o desconto é calculado e aplicado aqui, no servidor.
  */
 export async function closeTableSession(sessionId: string, paidWith: PaymentMethod | null, closedBy: string) {
-  await ensureDrawAtPayment(closedBy);
   const prize = await pendingPrizeFor(sessionId);
   return prisma.$transaction(
     async (tx) => {

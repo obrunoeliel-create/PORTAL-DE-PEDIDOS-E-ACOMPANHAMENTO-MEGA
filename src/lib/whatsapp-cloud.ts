@@ -12,6 +12,7 @@ import "server-only";
  *   WHATSAPP_TEMPLATE_ACCEPTED         ex: pedido_aceito
  *   WHATSAPP_TEMPLATE_OUT_FOR_DELIVERY ex: pedido_saiu_entrega
  *   WHATSAPP_TEMPLATE_READY_PICKUP     ex: pedido_pronto_retirada
+ *   WHATSAPP_TEMPLATE_WELCOME          ex: cadastro_confirmado (1 variável: {{1}} nome)
  *   WHATSAPP_TEMPLATE_LANG             padrão pt_BR
  *   WHATSAPP_API_VERSION               padrão v23.0
  */
@@ -37,20 +38,15 @@ function toE164Digits(phone: string): string | null {
   return /^55\d{10,11}$/.test(full) ? full : null;
 }
 
-export async function sendOrderUpdate(params: {
-  event: OrderUpdateEvent;
-  phone: string;
-  customerName: string;
-  orderNumber: number;
-  total: string;
-  trackingUrl: string;
-}): Promise<SendResult> {
+/**
+ * Envia um MODELO aprovado pela Meta com as variáveis do corpo ({{1}}, {{2}}...) na ordem dada.
+ * Nunca lança erro: devolve ok/erro para quem chamou registrar.
+ */
+export async function sendTemplate(params: { phone: string; template: string | undefined; templateEnv: string; bodyParams: string[] }): Promise<SendResult> {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   if (!token || !phoneNumberId) return { ok: false, error: "WhatsApp automático não configurado" };
-
-  const template = process.env[TEMPLATE_ENV[params.event]];
-  if (!template) return { ok: false, error: `Modelo não configurado (${TEMPLATE_ENV[params.event]})` };
+  if (!params.template) return { ok: false, error: `Modelo não configurado (${params.templateEnv})` };
 
   const to = toE164Digits(params.phone);
   if (!to) return { ok: false, error: "Telefone do cliente inválido" };
@@ -69,19 +65,9 @@ export async function sendOrderUpdate(params: {
         to,
         type: "template",
         template: {
-          name: template,
+          name: params.template,
           language: { code: process.env.WHATSAPP_TEMPLATE_LANG ?? "pt_BR" },
-          components: [
-            {
-              type: "body",
-              parameters: [
-                { type: "text", text: clean(params.customerName.split(" ")[0] || params.customerName) },
-                { type: "text", text: String(params.orderNumber) },
-                { type: "text", text: clean(params.total) },
-                { type: "text", text: params.trackingUrl },
-              ],
-            },
-          ],
+          components: [{ type: "body", parameters: params.bodyParams.map((text) => ({ type: "text", text: clean(text) })) }],
         },
       }),
       signal: AbortSignal.timeout(10_000),
@@ -98,4 +84,32 @@ export async function sendOrderUpdate(params: {
   } catch (err) {
     return { ok: false, error: err instanceof Error && err.name === "TimeoutError" ? "Tempo esgotado ao falar com a Meta" : "Falha de rede ao enviar" };
   }
+}
+
+/** Aviso de andamento do pedido: {{1}} nome, {{2}} nº do pedido, {{3}} total, {{4}} link. */
+export async function sendOrderUpdate(params: {
+  event: OrderUpdateEvent;
+  phone: string;
+  customerName: string;
+  orderNumber: number;
+  total: string;
+  trackingUrl: string;
+}): Promise<SendResult> {
+  const templateEnv = TEMPLATE_ENV[params.event];
+  return sendTemplate({
+    phone: params.phone,
+    template: process.env[templateEnv],
+    templateEnv,
+    bodyParams: [params.customerName.split(" ")[0] || params.customerName, String(params.orderNumber), params.total, params.trackingUrl],
+  });
+}
+
+/** Boas-vindas do cadastro: {{1}} primeiro nome. Modelo em WHATSAPP_TEMPLATE_WELCOME (ex: cadastro_confirmado). */
+export async function sendWelcomeWhatsApp(params: { phone: string; customerName: string }): Promise<SendResult> {
+  return sendTemplate({
+    phone: params.phone,
+    template: process.env.WHATSAPP_TEMPLATE_WELCOME,
+    templateEnv: "WHATSAPP_TEMPLATE_WELCOME",
+    bodyParams: [params.customerName.split(" ")[0] || params.customerName],
+  });
 }

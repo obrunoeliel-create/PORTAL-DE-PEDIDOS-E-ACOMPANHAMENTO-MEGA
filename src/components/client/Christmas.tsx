@@ -1,6 +1,7 @@
 "use client";
 
 import type { CampaignInfo } from "@/types/menu";
+import { hourLabel } from "./CampaignCard";
 
 // Decoração de Natal / fim de ano. Some sozinha depois do Dia de Reis.
 const CAMPAIGN_UNTIL = new Date("2027-01-07T03:00:00Z"); // 07/01/2027 00:00 (Brasília)
@@ -23,7 +24,7 @@ function bannerMessages(campaign: CampaignInfo | null): string[] {
   return [
     campaign.eventToday ? "🎉 HOJE TEM MESA PREMIADA" : campaign.started ? "🎄 MESA PREMIADA no ar" : "🎄 Vem aí a MESA PREMIADA",
     `📅 De ${dm(campaign.startDate)} a ${dm(campaign.endDate)}`,
-    "🗓️ Sextas, sábados e domingos",
+    `🗓️ Sextas, sábados e domingos, das ${hourLabel(campaign.drawStart)} às ${hourLabel(campaign.drawEnd)}`,
     `🎁 Uma mesa por dia ganha ${prize} de desconto`,
     "🔔 Mega Esfiha Jurema deseja Boas Festas",
   ];

@@ -1,6 +1,7 @@
 // Servidor HTTP customizado: Next.js + Socket.IO no mesmo processo.
 // O App Router não suporta WebSockets nativamente, por isso o servidor customizado.
 import { createServer, type IncomingMessage } from "node:http";
+import { randomBytes } from "node:crypto";
 import { loadEnvConfig } from "@next/env";
 import next from "next";
 import { Server } from "socket.io";
@@ -67,5 +68,31 @@ app.prepare().then(() => {
 
   httpServer.listen(port, host, () => {
     console.log(`> OrderFlow OS pronto em http://${host}:${port} (${dev ? "dev" : "produção"})`);
+    startMesaPremiadaClock();
   });
 });
+
+/**
+ * Relógio do sorteio automático da Mesa Premiada: a cada minuto o servidor chama a própria rota interna
+ * (que roda dentro do Next, com acesso ao banco). O segredo é gerado aqui e só existe neste processo.
+ */
+function startMesaPremiadaClock() {
+  process.env.INTERNAL_TICK_SECRET = randomBytes(32).toString("hex");
+  const local = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
+  const base = `http://${local}:${port}`;
+  const tick = async () => {
+    try {
+      const res = await fetch(`${base}/api/internal/mesa-premiada/tick`, {
+        method: "POST",
+        headers: { Origin: base, "x-internal-secret": process.env.INTERNAL_TICK_SECRET ?? "" },
+        signal: AbortSignal.timeout(30_000),
+      });
+      const data = (await res.json().catch(() => null)) as { drawn?: number | null } | null;
+      if (data?.drawn) console.log(`[mesa-premiada] sorteio automático: mesa ${data.drawn}`);
+    } catch (err) {
+      console.warn("[mesa-premiada] relógio do sorteio falhou:", err instanceof Error ? err.message : err);
+    }
+  };
+  setTimeout(tick, 15_000);
+  setInterval(tick, 60_000).unref();
+}

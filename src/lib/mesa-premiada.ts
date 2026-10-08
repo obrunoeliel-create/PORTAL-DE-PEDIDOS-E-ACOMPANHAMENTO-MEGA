@@ -1,12 +1,13 @@
 import "server-only";
-import { randomInt } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
 /**
  * Mesa Premiada - Edição de Natal.
- * Em cada dia de evento (sexta, sábado e domingo dentro do período) uma mesa ocupada é sorteada;
- * ao pagar no caixa, essa mesa ganha o desconto da campanha (conta até o valor do desconto sai de graça).
+ * Em cada dia de evento (sexta, sábado e domingo dentro do período), no horário da campanha (18:00 às 22:30),
+ * o próprio sistema sorteia uma mesa ocupada num momento aleatório desse horário; ao pagar no caixa,
+ * essa mesa ganha o desconto (conta até o valor do desconto sai de graça).
  * Tudo fica no servidor: nada sobre a mesa sorteada vai para as páginas do cliente antes do pagamento.
  */
 
@@ -36,6 +37,34 @@ export function isEventDay(campaign: Campaign | null, day = brDay()): campaign i
   );
 }
 
+/** Minutos desde a meia-noite em Brasília (0–1439). */
+export function brMinutes(now: Date = new Date()) {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now).split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** "18:00" a partir de 1080. */
+export const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+/** Agora está dentro do horário do sorteio (ex: 18:00 às 22:30)? */
+export function inDrawWindow(campaign: Campaign, now: Date = new Date()) {
+  const m = brMinutes(now);
+  return m >= campaign.drawStartMinute && m <= campaign.drawEndMinute;
+}
+
+/**
+ * Minuto do sorteio automático do dia: aleatório dentro do horário (até 15 min antes do fim, para dar
+ * tempo de tentar de novo se não houver mesa ocupada). Calculado com uma chave secreta do servidor:
+ * imprevisível para quem está de fora e o mesmo mesmo que o servidor reinicie.
+ */
+export function scheduledDrawMinute(campaign: Campaign, dayKey: string) {
+  const start = campaign.drawStartMinute;
+  const span = Math.max(1, campaign.drawEndMinute - 15 - start);
+  const secret = process.env.JWT_SECRET ?? "mesa-premiada";
+  const n = createHmac("sha256", secret).update(`mesa-premiada:${dayKey}`).digest().readUInt32BE(0);
+  return start + (n % span);
+}
+
 /** Regra do prêmio: conta maior que o desconto → abate o desconto; conta menor ou igual → sai de graça. */
 export function calcPrize(total: number, discount: number) {
   const applied = Math.min(Math.max(total, 0), discount);
@@ -58,10 +87,13 @@ export class DrawError extends Error {}
  * Sorteia 1 mesa ocupada (comanda aberta com pelo menos um pedido válido) para o dia de hoje.
  * O índice único na data garante uma única mesa por dia mesmo com dois cliques simultâneos.
  */
-export async function drawTodayTable(trigger: "MANUAL" | "FIRST_PAYMENT", by: string) {
+export async function drawTodayTable(trigger: "AUTO" | "MANUAL", by: string) {
   const day = brDay();
   const campaign = await getCampaign();
   if (!isEventDay(campaign, day)) throw new DrawError("Hoje não é dia de Mesa Premiada.");
+  if (!inDrawWindow(campaign)) {
+    throw new DrawError(`O sorteio da Mesa Premiada só acontece das ${hhmm(campaign.drawStartMinute)} às ${hhmm(campaign.drawEndMinute)}.`);
+  }
 
   const existing = await getTodayDraw(day);
   if (existing) return existing;
@@ -96,17 +128,18 @@ export async function drawTodayTable(trigger: "MANUAL" | "FIRST_PAYMENT", by: st
 }
 
 /**
- * Chamado quando o caixa abre uma conta de mesa para pagamento: se for dia de evento e ainda não
- * houver sorteio, sorteia agora (gatilho "primeiro pagamento presencial do dia").
+ * Sorteio automático: chamado pelo servidor a cada minuto. Em dia de evento, a partir do minuto
+ * sorteado do dia e até o fim do horário, sorteia uma mesa ocupada (se não houver nenhuma ocupada,
+ * tenta de novo no minuto seguinte). Devolve o sorteio quando acabou de acontecer.
  */
-export async function ensureDrawAtPayment(by: string) {
-  const day = brDay();
+export async function autoDrawTick(now: Date = new Date()) {
+  const day = brDay(now);
   const campaign = await getCampaign();
-  if (!isEventDay(campaign, day)) return null;
-  const existing = await getTodayDraw(day);
-  if (existing) return existing;
+  if (!isEventDay(campaign, day) || !inDrawWindow(campaign, now)) return null;
+  if (brMinutes(now) < scheduledDrawMinute(campaign, day.key)) return null;
+  if (await getTodayDraw(day)) return null;
   try {
-    return await drawTodayTable("FIRST_PAYMENT", by);
+    return await drawTodayTable("AUTO", "Sistema");
   } catch (err) {
     if (err instanceof DrawError) return null;
     throw err;
@@ -129,6 +162,10 @@ export async function campaignStateForStaff() {
   const draw = eventDay ? await getTodayDraw(day) : null;
   return {
     eventDay,
+    drawStart: hhmm(campaign?.drawStartMinute ?? 1080),
+    drawEnd: hhmm(campaign?.drawEndMinute ?? 1350),
+    inWindow: !!campaign && inDrawWindow(campaign),
+    windowOver: !!campaign && brMinutes() > campaign.drawEndMinute,
     name: campaign?.name ?? "Mesa Premiada",
     discount: campaign?.discount ?? 5000,
     minTable: campaign?.minTable ?? 1,
@@ -158,6 +195,8 @@ export async function publicCampaignInfo() {
     discount: campaign.discount,
     minTable: campaign.minTable,
     maxTable: campaign.maxTable,
+    drawStart: hhmm(campaign.drawStartMinute),
+    drawEnd: hhmm(campaign.drawEndMinute),
     started,
     daysToStart: started ? 0 : Math.round((campaign.startDate.getTime() - day.date.getTime()) / dayMs),
     eventToday: isEventDay(campaign, day),
