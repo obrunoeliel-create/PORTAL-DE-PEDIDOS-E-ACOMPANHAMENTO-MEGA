@@ -167,4 +167,7 @@ export const trackingTokenParam = z.string().regex(/^[A-Za-z0-9_-]{32}$/);
 
 /** Fechar a comanda da mesa: como o cliente pagou no caixa. */
 // paidWith pode vir vazio quando a Mesa Premiada zera a conta (nada a receber).
-export const closeTableSchema = z.object({ paidWith: z.enum(["PIX", "CARD", "CASH"]).nullable().optional() }).strict();
+// expectedTotal: usado pelo modo contingência — só fecha se a mesa ainda soma o valor que foi cobrado sem internet.
+export const closeTableSchema = z
+  .object({ paidWith: z.enum(["PIX", "CARD", "CASH"]).nullable().optional(), expectedTotal: z.number().int().min(0).max(100_000_000).optional() })
+  .strict();

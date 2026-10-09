@@ -2,6 +2,7 @@ import { requirePageSession } from "@/lib/auth";
 import { Logo } from "@/components/brand/Logo";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import { ContingencySync } from "@/components/admin/ContingencySync";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ const NAV = [
   { href: "/admin/financeiro", label: "Financeiro", icon: "💰", managerOnly: true },
   { href: "/admin/mesas", label: "Mesas", icon: "🪑", managerOnly: true },
   { href: "/admin/taxas", label: "Taxas", icon: "📍", managerOnly: true },
+  { href: "/admin/contingencia", label: "Contingência", icon: "🛟", managerOnly: false },
 ];
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +52,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         </div>
       </header>
       <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 sm:p-6 print:max-w-none print:p-0">{children}</main>
+      {/* Cópia de segurança no navegador (modo contingência) e aviso quando a internet cai. */}
+      <ContingencySync />
     </div>
   );
 }

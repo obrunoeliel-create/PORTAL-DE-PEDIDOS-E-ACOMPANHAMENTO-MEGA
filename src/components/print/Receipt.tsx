@@ -25,13 +25,11 @@ export function paperWidth(w: string | undefined) {
   return w === "58" || w === "a4" ? w : "80";
 }
 
-export function ReceiptShell({ width, children }: { width: string; children: React.ReactNode }) {
-  return (
-    <>
-      <style>{`
-        html, body { background: #fff !important; color: #000; margin: 0; }
-        ${WIDTH_CSS[width]}
-        .receipt { margin: 0 auto; padding: 3mm 2mm 6mm; font-family: "Courier New", ui-monospace, monospace; line-height: 1.3; color: #000; }
+/** Estilo do cupom (papel + tipografia), reutilizado pelas páginas de impressão e pelo modo contingência. */
+export function receiptCss(width: string) {
+  return `
+        ${WIDTH_CSS[width] ?? WIDTH_CSS["80"]}
+        .receipt { margin: 0 auto; padding: 3mm 2mm 6mm; font-family: "Courier New", ui-monospace, monospace; line-height: 1.3; color: #000; background: #fff; }
         .receipt * { color: #000 !important; }
         .r-center { text-align: center; }
         .r-store { font-size: 1.25em; font-weight: 800; }
@@ -45,11 +43,19 @@ export function ReceiptShell({ width, children }: { width: string; children: Rea
         .r-sub { padding-left: 1.2em; }
         .r-total { font-size: 1.35em; font-weight: 800; }
         .r-box { border: 1px solid #000; padding: 4px; margin: 4px 0; }
-        .r-small { font-size: .85em; }
+        .r-small { font-size: .85em; }`;
+}
+
+export function ReceiptShell({ width, children }: { width: string; children: React.ReactNode }) {
+  return (
+    <>
+      <style>{`
+        html, body { background: #fff !important; color: #000; margin: 0; }
+        ${receiptCss(width)}
         .toolbar { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; font-family: system-ui, sans-serif; }
         .toolbar button { padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 14px; }
         @media print { .no-print { display: none !important; } }
-        @media screen { body { background: #eee !important; padding: 16px 0; } .receipt { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.15); } }
+        @media screen { body { background: #eee !important; padding: 16px 0; } .receipt { box-shadow: 0 2px 10px rgba(0,0,0,.15); } }
       `}</style>
       <div className="receipt">{children}</div>
     </>

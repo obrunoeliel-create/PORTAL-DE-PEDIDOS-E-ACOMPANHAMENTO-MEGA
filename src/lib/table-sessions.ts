@@ -64,7 +64,7 @@ export async function previewTableCheckout(sessionId: string, by: string) {
  * Pedidos ainda em preparo/prontos viram "Concluído"; pedidos aguardando aceite bloqueiam o fechamento.
  * Se a comanda é a Mesa Premiada do dia, o desconto é calculado e aplicado aqui, no servidor.
  */
-export async function closeTableSession(sessionId: string, paidWith: PaymentMethod | null, closedBy: string) {
+export async function closeTableSession(sessionId: string, paidWith: PaymentMethod | null, closedBy: string, expectedTotal?: number) {
   const prize = await pendingPrizeFor(sessionId);
   return prisma.$transaction(
     async (tx) => {
@@ -82,6 +82,9 @@ export async function closeTableSession(sessionId: string, paidWith: PaymentMeth
         await tx.order.updateMany({ where: { id: { in: toComplete } }, data: { status: "COMPLETED", completedAt: new Date() } });
       }
       const original = session.orders.filter((o) => o.status !== "CANCELED").reduce((s, o) => s + o.total, 0);
+      if (expectedTotal !== undefined && expectedTotal !== original) {
+        throw new TableSessionError("O total da mesa mudou desde que a conta foi cobrada. Confira os pedidos antes de fechar.");
+      }
       const calc = prize ? calcPrize(original, prize.discount) : { original, discount: 0, final: original };
       if (calc.final > 0 && !paidWith) throw new TableSessionError("Informe a forma de pagamento.");
       const now = new Date();

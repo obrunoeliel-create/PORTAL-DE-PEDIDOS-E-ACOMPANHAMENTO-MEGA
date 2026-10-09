@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const result = await closeTableSession(id.data, parsed.data.paidWith ?? null, auth.user.name);
+    const result = await closeTableSession(id.data, parsed.data.paidWith ?? null, auth.user.name, parsed.data.expectedTotal);
     // Pedidos concluídos no fechamento somem das colunas ativas do painel em tempo real.
     if (result.completedOrderIds.length) {
       const orders = await prisma.order.findMany({ where: { id: { in: result.completedOrderIds } }, include: orderInclude });
