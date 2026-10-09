@@ -69,12 +69,18 @@ export async function GET() {
   };
 
   // 2) O ID do número configurado existe para este token?
-  const phone = await graph(`${encodeURIComponent(phoneId)}?fields=display_phone_number,verified_name,code_verification_status,quality_rating,status,platform_type`, token);
+  const phone = await graph(`${encodeURIComponent(phoneId)}?fields=display_phone_number,verified_name,code_verification_status,quality_rating,status,platform_type,name_status,new_name_status,account_mode,is_pin_enabled,messaging_limit_tier,health_status`, token);
   const phoneInfo = phone.ok ? phone.json : { error: errText(phone.json.error) };
+
+  // Contas do WhatsApp atribuídas ao usuário do sistema dono do token.
+  const me = await graph("me?fields=id,name", token);
+  const assigned = me.ok ? await graph(`${me.json.id}/assigned_whatsapp_business_accounts?fields=id,name`, token) : null;
+  const assignedIds = assigned?.ok ? ((assigned.json.data as { id: string }[]) ?? []).map((a) => a.id) : [];
+  const systemUser = { id: me.json.id ?? null, name: me.json.name ?? null, error: errText(me.json.error), assignedError: assigned && !assigned.ok ? errText(assigned.json.error) : null };
 
   // 3) Números e modelos de cada conta do WhatsApp que o token alcança (para achar o ID certo).
   const accounts = [];
-  for (const id of tokenInfo.whatsappAccountIds.slice(0, 5)) {
+  for (const id of [...new Set([...tokenInfo.whatsappAccountIds, ...assignedIds])].slice(0, 5)) {
     const [numbers, templates, self] = await Promise.all([
       graph(`${id}/phone_numbers?fields=id,display_phone_number,verified_name,code_verification_status,status`, token),
       graph(`${id}/message_templates?fields=name,status,category,language&limit=50`, token),
@@ -88,5 +94,5 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ config, tokenInfo, phoneInfo, accounts });
+  return NextResponse.json({ config, tokenInfo, systemUser, phoneInfo, accounts });
 }
