@@ -91,14 +91,18 @@ export async function GET() {
     if (r.ok) owned.push(...(((r.json.data as { id: string }[]) ?? []).map((a) => a.id)));
   }
   for (const id of [...new Set([...phoneWabaIds, ...tokenInfo.whatsappAccountIds, ...assignedIds, ...owned])].slice(0, 6)) {
-    const [numbers, templates, self] = await Promise.all([
+    const [numbers, templates, self, apps] = await Promise.all([
       graph(`${id}/phone_numbers?fields=id,display_phone_number,verified_name,code_verification_status,status`, token),
       graph(`${id}/message_templates?fields=name,status,category,language&limit=50`, token),
-      graph(`${id}?fields=name`, token),
+      graph(`${id}?fields=name,status,account_review_status,business_verification_status,ownership_type,primary_funding_id,currency,country,health_status`, token),
+      graph(`${id}/subscribed_apps`, token),
     ]);
     accounts.push({
       id,
       name: (self.json.name as string) ?? null,
+      assignedToSystemUser: assignedIds.includes(id),
+      info: self.ok ? self.json : { error: errText(self.json.error) },
+      subscribedApps: apps.ok ? apps.json.data : { error: errText(apps.json.error) },
       phoneNumbers: numbers.ok ? numbers.json.data : { error: errText(numbers.json.error) },
       templates: templates.ok ? templates.json.data : { error: errText(templates.json.error) },
     });
