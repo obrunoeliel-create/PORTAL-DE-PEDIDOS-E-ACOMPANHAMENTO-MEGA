@@ -119,7 +119,7 @@ export async function POST(req: Request) {
   if (!token || !phoneId) return NextResponse.json({ error: "WhatsApp não configurado." }, { status: 400 });
   const body = (await req.json().catch(() => ({}))) as { pin?: unknown };
   const pin = typeof body.pin === "string" ? body.pin : "";
-  if (!/^d{6}$/.test(pin)) return NextResponse.json({ error: "Informe um PIN de 6 números." }, { status: 422 });
+  if (!/^\d{6}$/.test(pin)) return NextResponse.json({ error: "Informe um PIN de 6 números." }, { status: 422 });
 
   const base = process.env.WHATSAPP_API_BASE ?? "https://graph.facebook.com";
   const version = process.env.WHATSAPP_API_VERSION ?? "v23.0";
