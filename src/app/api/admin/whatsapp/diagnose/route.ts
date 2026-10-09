@@ -92,11 +92,13 @@ export async function GET(req: Request) {
     const r = await graph(`${b}/owned_whatsapp_business_accounts?fields=id,name`, token);
     if (r.ok) owned.push(...(((r.json.data as { id: string }[]) ?? []).map((a) => a.id)));
   }
-  for (const id of [...new Set([...phoneWabaIds, ...tokenInfo.whatsappAccountIds, ...assignedIds, ...owned])].slice(0, 6)) {
+  // ?waba=ID1,ID2 inclui outras contas na conferência (ex: as que aparecem em Cobrança e pagamentos).
+  const extra = (new URL(req.url).searchParams.get("waba") ?? "").split(",").filter((x) => /^[0-9]{8,24}$/.test(x));
+  for (const id of [...new Set([...phoneWabaIds, ...tokenInfo.whatsappAccountIds, ...assignedIds, ...owned, ...extra])].slice(0, 8)) {
     const [numbers, templates, self, apps] = await Promise.all([
       graph(`${id}/phone_numbers?fields=id,display_phone_number,verified_name,code_verification_status,status`, token),
       graph(`${id}/message_templates?fields=name,status,category,language&limit=50`, token),
-      graph(`${id}?fields=name,status,account_review_status,business_verification_status,ownership_type,primary_funding_id,currency,country,health_status`, token),
+      graph(`${id}?fields=id,name,currency,timezone_id,message_template_namespace`, token),
       graph(`${id}/subscribed_apps`, token),
     ]);
     accounts.push({
