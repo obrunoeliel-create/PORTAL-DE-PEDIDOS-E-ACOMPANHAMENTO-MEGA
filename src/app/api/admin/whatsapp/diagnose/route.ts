@@ -80,7 +80,17 @@ export async function GET() {
 
   // 3) Números e modelos de cada conta do WhatsApp que o token alcança (para achar o ID certo).
   const accounts = [];
-  for (const id of [...new Set([...tokenInfo.whatsappAccountIds, ...assignedIds])].slice(0, 5)) {
+  // A conta (WABA) dona do número configurado vem no "health_status" do próprio número.
+  const health = (phone.json.health_status as { entities?: { entity_type: string; id: string }[] } | undefined)?.entities ?? [];
+  const phoneWabaIds = health.filter((e) => e.entity_type === "WABA").map((e) => e.id);
+  const businessIds = health.filter((e) => e.entity_type === "BUSINESS").map((e) => e.id);
+  // Todas as contas do WhatsApp da empresa (para achar duplicidades do mesmo número).
+  const owned = [];
+  for (const b of businessIds.slice(0, 2)) {
+    const r = await graph(`${b}/owned_whatsapp_business_accounts?fields=id,name`, token);
+    if (r.ok) owned.push(...(((r.json.data as { id: string }[]) ?? []).map((a) => a.id)));
+  }
+  for (const id of [...new Set([...phoneWabaIds, ...tokenInfo.whatsappAccountIds, ...assignedIds, ...owned])].slice(0, 6)) {
     const [numbers, templates, self] = await Promise.all([
       graph(`${id}/phone_numbers?fields=id,display_phone_number,verified_name,code_verification_status,status`, token),
       graph(`${id}/message_templates?fields=name,status,category,language&limit=50`, token),
@@ -94,5 +104,36 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ config, tokenInfo, systemUser, phoneInfo, accounts });
+  return NextResponse.json({ config, tokenInfo, systemUser, phoneInfo, phoneWabaIds, accounts });
+}
+
+/**
+ * Registra o número configurado na Cloud API (o passo que tira o número de "Pendente").
+ * Corpo: { "pin": "6 dígitos" } — o PIN vira a verificação em duas etapas do número. Só gerente.
+ */
+export async function POST(req: Request) {
+  const auth = await requireApiSession(["MANAGER"]);
+  if (!auth.ok) return auth.response;
+  const token = process.env.WHATSAPP_TOKEN ?? "";
+  const phoneId = (process.env.WHATSAPP_PHONE_NUMBER_ID ?? "").trim();
+  if (!token || !phoneId) return NextResponse.json({ error: "WhatsApp não configurado." }, { status: 400 });
+  const body = (await req.json().catch(() => ({}))) as { pin?: unknown };
+  const pin = typeof body.pin === "string" ? body.pin : "";
+  if (!/^d{6}$/.test(pin)) return NextResponse.json({ error: "Informe um PIN de 6 números." }, { status: 422 });
+
+  const base = process.env.WHATSAPP_API_BASE ?? "https://graph.facebook.com";
+  const version = process.env.WHATSAPP_API_VERSION ?? "v23.0";
+  try {
+    const res = await fetch(`${base}/${version}/${encodeURIComponent(phoneId)}/register`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", pin }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: GraphError & { error_data?: { details?: string } } };
+    if (!res.ok) return NextResponse.json({ ok: false, error: errText(json.error), details: json.error?.error_data?.details ?? null }, { status: 502 });
+    return NextResponse.json({ ok: json.success ?? true });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: err instanceof Error ? err.message : "falha de rede" }, { status: 502 });
+  }
 }
