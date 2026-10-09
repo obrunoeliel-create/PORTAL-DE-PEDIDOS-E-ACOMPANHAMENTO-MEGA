@@ -25,12 +25,14 @@ const errText = (e?: GraphError) => (e ? `${e.message ?? "erro"}${e.code ? ` (c�
  * permissões e contas ele alcança, e se o ID do número configurado existe para esse token.
  * Nunca devolve o token.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireApiSession(["MANAGER"]);
   if (!auth.ok) return auth.response;
 
   const token = process.env.WHATSAPP_TOKEN ?? "";
-  const phoneId = (process.env.WHATSAPP_PHONE_NUMBER_ID ?? "").trim();
+  // ?phone=ID confere outro número da empresa (ex: antes de trocar o número configurado).
+  const other = new URL(req.url).searchParams.get("phone") ?? "";
+  const phoneId = /^[0-9]{8,24}$/.test(other) ? other : (process.env.WHATSAPP_PHONE_NUMBER_ID ?? "").trim();
   const config = {
     tokenPresent: !!token,
     tokenLength: token.length,
