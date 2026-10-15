@@ -292,3 +292,16 @@ model MesaPremiada {
   discountApplied Int?
   redeemedAt      DateTime?
 }
+
+// Cliente na mesa apertou "Chamar atendente" (ou "Pedir a conta"). Fica pendente até a equipe atender.
+model TableCall {
+  id          String    @id @default(cuid())
+  tableNumber Int
+  reason      String // "ATENDIMENTO" ou "CONTA"
+  createdAt   DateTime  @default(now())
+  attendedAt  DateTime?
+  attendedBy  String?
+
+  @@index([attendedAt])
+  @@index([tableNumber, attendedAt])
+}

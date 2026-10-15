@@ -3,6 +3,7 @@ import { Logo } from "@/components/brand/Logo";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { ContingencySync } from "@/components/admin/ContingencySync";
+import { TableCallAlerts } from "@/components/admin/TableCallAlerts";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 sm:p-6 print:max-w-none print:p-0">{children}</main>
       {/* Cópia de segurança no navegador (modo contingência) e aviso quando a internet cai. */}
       <ContingencySync />
+      {/* "Chamar atendente" das mesas: aviso com som em qualquer tela do portal. */}
+      <TableCallAlerts />
     </div>
   );
 }

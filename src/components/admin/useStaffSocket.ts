@@ -9,6 +9,8 @@ type Handlers = {
   onUpdated?: (order: BoardOrder) => void;
   /** Mesa Premiada: o sistema acabou de sortear uma mesa. */
   onCampaign?: () => void;
+  /** Chamados de mesa ("Chamar atendente") mudaram: lista atual de pendentes. */
+  onTableCalls?: (calls: unknown) => void;
   /** Chamado a cada (re)conexão — use para ressincronizar o estado. */
   onConnect?: () => void;
 };
@@ -34,6 +36,7 @@ export function useStaffSocket(handlers: Handlers) {
     socket.on("order:new", (o: BoardOrder) => ref.current.onNew?.(o));
     socket.on("order:updated", (o: BoardOrder) => ref.current.onUpdated?.(o));
     socket.on("campaign:updated", () => ref.current.onCampaign?.());
+    socket.on("tablecalls:changed", (p: { calls: unknown }) => ref.current.onTableCalls?.(p.calls));
     return () => {
       socket.disconnect();
     };

@@ -10,6 +10,6 @@ export function setIo(io: Server) {
   g.__orderflowIo = io;
 }
 
-export function emitToStaff(event: "order:new" | "order:updated" | "campaign:updated", payload: unknown) {
+export function emitToStaff(event: "order:new" | "order:updated" | "campaign:updated" | "tablecalls:changed", payload: unknown) {
   g.__orderflowIo?.to(STAFF_ROOM).emit(event, payload);
 }

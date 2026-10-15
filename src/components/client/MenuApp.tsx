@@ -14,6 +14,7 @@ import { CartDrawer, LAST_ORDER_KEY } from "./CartDrawer";
 import { AccountSheet } from "./AccountSheet";
 import { ChristmasBanner, SnowLayer } from "./Christmas";
 import { CampaignCard, InstagramButton } from "./CampaignCard";
+import { CallWaiterButton } from "./CallWaiterButton";
 
 const CART_KEY = "orderflow:cart:v1";
 
@@ -358,6 +359,9 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
           )}
         </div>
       </footer>
+
+      {/* ---------- Chamar atendente (só na mesa, pelo QR Code) ---------- */}
+      {mode?.type === "TABLE" && <CallWaiterButton tableNumber={mode.tableNumber} tableToken={mode.tableToken} raised={cartCount > 0} />}
 
       {/* ---------- Barra do carrinho ---------- */}
       {cartCount > 0 && (

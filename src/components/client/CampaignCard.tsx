@@ -108,7 +108,7 @@ export function CampaignCard({ campaign, instagram }: { campaign: CampaignInfo; 
               icon="🗓️"
               label="Sorteios"
               value={`${days.charAt(0).toUpperCase() + days.slice(1)}, ${hours}`}
-              short={`${weekdaysShort(campaign.weekdays)} · ${hourLabel(campaign.drawStart)}–${hourLabel(campaign.drawEnd)}`}
+              short={`${weekdaysShort(campaign.weekdays)}\n${hourLabel(campaign.drawStart)}–${hourLabel(campaign.drawEnd)}`}
             />
             <Fact icon="🎁" label="Prêmio" value={`${prize} de desconto`} short={`${prize.replace(",00", "")} OFF`} />
           </ul>
@@ -157,7 +157,8 @@ function Fact({ icon, label, value, short }: { icon: string; label: string; valu
       </span>
       <span className="leading-tight">
         <span className="block text-[10px] uppercase tracking-wide text-white/70 sm:text-[11px]">{label}</span>
-        <span className="block whitespace-nowrap font-display text-[12px] font-bold sm:hidden">{short ?? value}</span>
+        {/* Quebra de linha só onde o texto curto pede (\n), sem estourar a caixinha. */}
+        <span className="block whitespace-pre font-display text-[12px] font-bold sm:hidden">{short ?? value}</span>
         <span className="hidden font-display text-sm font-bold sm:block">{value}</span>
       </span>
     </li>

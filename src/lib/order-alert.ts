@@ -119,3 +119,33 @@ export function playOrderAlert(): boolean {
   }
   return true;
 }
+
+/**
+ * Aviso de "Chamar atendente": três batidas de sino e a voz dizendo a mesa (voz do navegador, em português).
+ * Devolve false se o navegador ainda não liberou o som.
+ */
+export function playTableCallAlert(tableNumber: number, reason: "ATENDIMENTO" | "CONTA"): boolean {
+  const c = getContext();
+  if (!c) return false;
+  if (c.state !== "running") {
+    void c.resume().catch(() => {});
+    return false;
+  }
+  const t0 = c.currentTime + 0.03;
+  bell(c, t0, 0.8);
+  bell(c, t0 + 0.9, 0.8);
+  try {
+    const synth = window.speechSynthesis;
+    if (synth) {
+      const msg = new SpeechSynthesisUtterance(reason === "CONTA" ? `Mesa ${tableNumber} pediu a conta` : `Mesa ${tableNumber} chamando o atendente`);
+      msg.lang = "pt-BR";
+      const voice = synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith("pt"));
+      if (voice) msg.voice = voice;
+      msg.rate = 1;
+      setTimeout(() => synth.speak(msg), 1800);
+    }
+  } catch {
+    // sem voz do navegador: fica só o sino
+  }
+  return true;
+}
