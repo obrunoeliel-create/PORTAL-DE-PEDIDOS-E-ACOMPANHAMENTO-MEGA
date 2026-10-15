@@ -84,6 +84,78 @@ const MENU_IMAGES: Record<string, string> = {
   "refrigerantes/Schweppes": "refri-citrus-lata.jpg",
   "refrigerantes/Água Garrafa 500ml": "agua.jpg",
   "refrigerantes/Água com Gás 500ml": "agua-gas.jpg",
+
+  // Esfihas especiais
+  "esfihas-especiais/Carne com Queijo": "esp-carne-queijo.jpg",
+  "esfihas-especiais/Carne com Cheddar": "esp-carne-cheddar.jpg",
+  "esfihas-especiais/Carne com Requeijão": "esp-carne-requeijao.jpg",
+  "esfihas-especiais/Calabresa com Queijo": "esp-calabresa-queijo.jpg",
+  "esfihas-especiais/Calabresa com Cheddar": "esp-calabresa-cheddar.jpg",
+  "esfihas-especiais/Calabresa com Requeijão": "esp-calabresa-requeijao.jpg",
+  "esfihas-especiais/Caipira": "esp-caipira.jpg",
+  "esfihas-especiais/Frango com Queijo": "esp-frango-queijo.jpg",
+  "esfihas-especiais/Frango com Requeijão": "esp-frango-requeijao.jpg",
+  "esfihas-especiais/Frango com Cheddar": "esp-frango-cheddar.jpg",
+  "esfihas-especiais/Palmito com Requeijão": "esp-palmito-requeijao.jpg",
+  "esfihas-especiais/Palmito com Queijo": "esp-palmito-queijo.jpg",
+  "esfihas-especiais/Bacon com Requeijão": "esp-bacon-requeijao.jpg",
+  "esfihas-especiais/Palmito com Cheddar": "esp-palmito-cheddar.jpg",
+  "esfihas-especiais/Bacon com Cheddar": "esp-bacon-cheddar.jpg",
+  "esfihas-especiais/Bacon com Queijo": "esp-bacon-queijo.jpg",
+  "esfihas-especiais/Milho com Cheddar": "esp-milho-cheddar.jpg",
+  "esfihas-especiais/Milho com Queijo": "esp-milho-queijo.jpg",
+  "esfihas-especiais/Pizza": "esp-pizza.jpg",
+  "esfihas-especiais/2 Queijos": "esp-2-queijos.jpg",
+  "esfihas-especiais/3 Queijos": "esp-3-queijos.jpg",
+  "esfihas-especiais/Carne Seca com Queijo": "esp-carne-seca-queijo.jpg",
+  "esfihas-especiais/4 Queijos": "esp-4-queijos.jpg",
+  "esfihas-especiais/Atum com Queijo": "esp-atum-queijo.jpg",
+  "esfihas-especiais/Atum com Requeijão": "esp-atum-requeijao.jpg",
+
+  // Esfihas doces
+  "esfihas-doces/Chocolate": "doce-chocolate.jpg",
+  "esfihas-doces/Chocolate Branco": "doce-chocolate-branco.jpg",
+  "esfihas-doces/Doce de Leite": "doce-doce-de-leite.jpg",
+  "esfihas-doces/Brigadeiro": "doce-brigadeiro.jpg",
+  "esfihas-doces/Prestígio": "doce-prestigio.jpg",
+  "esfihas-doces/Confetes": "doce-confetes.jpg",
+  "esfihas-doces/Banana Canela Chocolate": "doce-banana-canela.jpg",
+  "esfihas-doces/Banana com Chocolate": "doce-banana-chocolate.jpg",
+  "esfihas-doces/Romeu e Julieta": "doce-romeu-julieta.jpg",
+  "esfihas-doces/Sensação": "doce-sensacao.jpg",
+
+  // Pizzas doces
+  "pizzas-doces/Chocolate": "pizzadoce-chocolate.jpg",
+  "pizzas-doces/Sensação": "pizzadoce-sensacao.jpg",
+  "pizzas-doces/Confetes": "pizzadoce-confetes.jpg",
+  "pizzas-doces/Brigadeiro": "pizzadoce-brigadeiro.jpg",
+  "pizzas-doces/Banana": "pizzadoce-banana.jpg",
+  "pizzas-doces/Prestígio": "pizzadoce-prestigio.jpg",
+  "pizzas-doces/Romeu e Julieta": "pizzadoce-romeu-julieta.jpg",
+  "pizzas-doces/Banana Nevada": "pizzadoce-banana-nevada.jpg",
+
+  // Beirute
+  "beirute/Á Moda": "beirute-a-moda.jpg",
+  "beirute/Frango com Requeijão": "beirute-frango-requeijao.jpg",
+  "beirute/Frango": "beirute-frango.jpg",
+  "beirute/Calabresa com Requeijão": "beirute-calabresa-requeijao.jpg",
+  "beirute/Calabresa": "beirute-calabresa.jpg",
+  "beirute/Atum": "beirute-atum.jpg",
+  "beirute/Atum Requeijão": "beirute-atum-requeijao.jpg",
+  "beirute/Carne Seca": "beirute-carne-seca.jpg",
+
+  // Porções
+  "porcoes/Fritas": "porcao-fritas.jpg",
+  "porcoes/Calabresa": "porcao-calabresa.jpg",
+  "porcoes/Azeitona": "porcao-azeitona.jpg",
+  "porcoes/Queijo": "porcao-queijo.jpg",
+  "porcoes/Fritas com Acompanhamento": "porcao-fritas-acompanhamento.jpg",
+
+  // Sucos
+  "sucos/Suco com Água": "suco-agua.jpg",
+  "sucos/Suco com Leite": "suco-leite.jpg",
+  "sucos/Laranja Natural": "suco-laranja.jpg",
+  "sucos/Polpa com Laranja": "suco-polpa-laranja.jpg",
 };
 
 /** Endereço da foto do produto, ou null se ainda não houver foto aprovada. */
