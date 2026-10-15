@@ -8,6 +8,8 @@ export type MenuProduct = {
   price: number;
   categoryId: string;
   variants: MenuVariant[];
+  /** Foto ilustrativa (gerada por IA) ou null. */
+  image?: string | null;
 };
 
 export type MenuCategory = {

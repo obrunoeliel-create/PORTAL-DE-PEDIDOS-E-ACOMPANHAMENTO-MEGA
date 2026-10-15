@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { CartItem, MenuCategory, MenuProduct } from "@/types/menu";
 import { calcUnitPrice } from "@/lib/pricing-core";
 import { formatBRL } from "@/lib/money";
+import { AI_IMAGE_NOTICE } from "@/lib/menu-images";
 import { categoryIcon } from "@/components/brand/categoryIcon";
 
 type Props = {
@@ -66,10 +67,20 @@ export function ProductModal({ product, category, onAdd, onClose }: Props) {
     <div className="overlay" role="dialog" aria-modal onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet flex max-h-[92vh] w-full max-w-lg flex-col">
         <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-stone-200 sm:hidden" aria-hidden />
+        {product.image && (
+          <figure className="mx-5 mt-4 overflow-hidden rounded-2xl bg-[#f4f1ec]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={product.image} alt={`${product.name} (imagem ilustrativa gerada por IA)`} className="mx-auto aspect-square w-full max-w-xs object-cover" />
+            <figcaption className="bg-black/5 px-3 py-1.5 text-center text-[11px] text-stone-600">📷 {AI_IMAGE_NOTICE}</figcaption>
+          </figure>
+        )}
         <div className="flex items-start gap-4 p-5">
-          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-mega-100 to-mega-300 text-4xl" aria-hidden>
-            {categoryIcon(category.slug)}
-          </span>
+          {/* Com foto, o ícone da categoria sai: um único elemento principal na tela. */}
+          {!product.image && (
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-mega-100 to-mega-300 text-4xl" aria-hidden>
+              {categoryIcon(category.slug)}
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">{category.name}</p>
             <h2 className="text-2xl font-extrabold leading-tight">{product.name}</h2>

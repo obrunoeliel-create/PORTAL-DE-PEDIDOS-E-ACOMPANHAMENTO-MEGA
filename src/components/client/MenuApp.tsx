@@ -15,6 +15,7 @@ import { AccountSheet } from "./AccountSheet";
 import { ChristmasBanner, SnowLayer } from "./Christmas";
 import { CampaignCard, InstagramButton } from "./CampaignCard";
 import { CallWaiterButton } from "./CallWaiterButton";
+import { AI_IMAGE_NOTICE } from "@/lib/menu-images";
 
 const CART_KEY = "orderflow:cart:v1";
 
@@ -123,6 +124,8 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  // Há alguma foto no cardápio? Então mostra o aviso de imagens geradas por IA.
+  const hasPhotos = useMemo(() => categories.some((c) => c.products.some((p) => p.image)), [categories]);
   const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
 
   function scrollToCategory(id: string) {
@@ -304,6 +307,14 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
 
       {/* ---------- Cardápio ---------- */}
       <main className="mx-auto max-w-3xl space-y-10 px-4 pt-4">
+        {hasPhotos && (
+          <p className="flex items-start gap-2 rounded-2xl bg-white px-4 py-3 text-xs leading-snug text-stone-600 shadow-card ring-1 ring-stone-900/5">
+            <span aria-hidden>📷</span>
+            <span>
+              <strong>Fotos meramente ilustrativas:</strong> as imagens do cardápio são geradas por inteligência artificial e o produto servido pode ter aparência diferente.
+            </span>
+          </p>
+        )}
         {filtered.length === 0 && (
           <div className="py-16 text-center">
             <p className="text-4xl">🔍</p>
@@ -341,6 +352,7 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
         <div className="card flex flex-col items-center gap-3 p-6 text-center">
           <Logo size={64} className="shadow-card" />
           <p className="font-display text-lg font-bold">{settings.storeName}</p>
+          {hasPhotos && <p className="max-w-md text-xs text-stone-500">📷 {AI_IMAGE_NOTICE}</p>}
           {settings.instagram && (
             <>
               <p className="-mt-1 text-sm text-stone-500">Siga, poste sua foto e marque a gente 💛</p>
@@ -458,12 +470,22 @@ function ProductCard({
       disabled={disabled}
       className="group card flex h-full w-full items-center gap-3.5 p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-lift disabled:pointer-events-none disabled:opacity-60 sm:p-4"
     >
-      <span
-        className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-mega-100 to-mega-300 text-3xl transition group-hover:scale-105"
-        aria-hidden
-      >
-        {icon}
-      </span>
+      {product.image ? (
+        <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#f4f1ec] transition group-hover:scale-105">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={product.image} alt={`${product.name} (imagem ilustrativa gerada por IA)`} loading="lazy" className="h-full w-full object-cover" />
+          <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 py-px text-[9px] font-semibold leading-tight text-white" title={AI_IMAGE_NOTICE}>
+            Ilustrativa · IA
+          </span>
+        </span>
+      ) : (
+        <span
+          className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-mega-100 to-mega-300 text-3xl transition group-hover:scale-105"
+          aria-hidden
+        >
+          {icon}
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <h3 className="font-display text-[1.05rem] font-semibold leading-snug">{product.name}</h3>
         {product.description && <p className="line-clamp-2 text-[13px] leading-snug text-stone-500">{product.description}</p>}

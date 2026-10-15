@@ -5,6 +5,7 @@ import { verifyTableToken } from "@/lib/tables";
 import { listZones } from "@/lib/delivery-zones";
 import { getCurrentCustomer } from "@/lib/customer-session";
 import { publicCampaignInfo } from "@/lib/mesa-premiada";
+import { productImage } from "@/lib/menu-images";
 import type { MenuCategory, PublicSettings } from "@/types/menu";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,9 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
     publicCampaignInfo(),
   ]);
 
-  const menu: MenuCategory[] = categories.filter((c) => c.products.length > 0);
+  const menu: MenuCategory[] = categories
+    .filter((c) => c.products.length > 0)
+    .map((c) => ({ ...c, products: c.products.map((p) => ({ ...p, image: productImage(c.slug, p.name) })) }));
   // Apenas dados públicos vão para o cliente (sem a chave PIX, por exemplo).
   const publicSettings: PublicSettings = {
     storeName: settings.storeName,
