@@ -5,6 +5,7 @@ import { customerRegisterSchema } from "@/lib/validators";
 import { PayloadError, getClientIp, jsonError, readJson, tooManyRequests, validationError } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendCustomerWelcome } from "@/lib/welcome";
+import { touchContact } from "@/lib/wa/automations";
 import { CUSTOMER_COOKIE, customerCookieOptions, customerSelect, signCustomerToken, toProfile } from "@/lib/customer-session";
 
 export const runtime = "nodejs";
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   }
   const parsed = customerRegisterSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
-  const { name, phone, email, pin, address } = parsed.data;
+  const { name, phone, email, pin, address, marketingOptIn } = parsed.data;
 
   if (await prisma.customer.findUnique({ where: { phone }, select: { id: true } })) {
     return NextResponse.json(
@@ -54,9 +55,12 @@ export async function POST(req: Request) {
       addressReference: address?.reference ?? null,
       addressZip: address?.zip ?? null,
       zoneId,
+      marketingOptIn,
     },
     select: customerSelect,
   });
+  // Contato do robô do WhatsApp (consentimento para cupons e promoções, se marcou).
+  await touchContact(phone, name, marketingOptIn);
 
   // Boas-vindas por WhatsApp e e-mail em segundo plano: não atrasa o cadastro.
   void sendCustomerWelcome(customer.id);

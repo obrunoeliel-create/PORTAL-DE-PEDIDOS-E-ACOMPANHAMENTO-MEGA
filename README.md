@@ -135,6 +135,18 @@ O envio usa a **API oficial do WhatsApp Business (Meta Cloud API)** — o único
 
 O card do pedido no painel mostra se cada aviso foi enviado (✓) ou o erro da Meta; o botão manual de WhatsApp continua disponível.
 
+## Robô do WhatsApp (portal → WhatsApp)
+
+O número de avisos da loja é conectado **pelo QR Code**, como o WhatsApp Web (biblioteca Baileys, dentro do próprio servidor). A API da Meta acima vira reserva: se o robô estiver desconectado, os avisos que têm modelo aprovado saem por ela.
+
+- **Conectar:** portal → WhatsApp → *Conectar (QR Code)* → no celular: Aparelhos conectados → Conectar um aparelho. A sessão fica salva no banco (tabela `WaAuth`, cifrada com AES-256-GCM; chave derivada de `WA_AUTH_SECRET` ou, se ausente, do `JWT_SECRET`) e volta sozinha após reinícios e deploys.
+- **Fila no banco** (`WaMessage`, sem Redis): chave única por mensagem (nunca duplica), pausa mínima + variação entre envios, limite por hora, 3 tentativas. Cupom e campanha só das 9h às 21h. Aviso de pedido parado há mais de 3 h expira.
+- **Automações:** pedido recebido → em preparo → saiu para entrega / pronto → entregue; avaliação 24 h depois (resposta 1–5 ou link); cupom pessoal "volte sempre" 7 dias depois (só com consentimento). Tudo configurável na aba *Cupons e automações*; textos editáveis na aba *Mensagens*.
+- **Toda mensagem termina com o aviso** de que o número é só de avisos automáticos e indica o WhatsApp oficial da loja (`HUMAN_WHATSAPP` em `src/lib/wa/templates.ts`). Quem escreve para o robô recebe (no máximo a cada 12 h) a indicação do número oficial.
+- **LGPD:** promoções só para quem marcou o consentimento (carrinho/cadastro); SAIR cancela tudo, VOLTAR reativa. Mensagens são apagadas após 180 dias e eventos após 60.
+- **Riscos:** não é a API oficial; o WhatsApp pode bloquear números que enviam em massa. Use um número só para avisos.
+- Relógio: `server.ts` chama `/api/internal/wa/tick` a cada 20 s (conexão, fila, campanhas). Um "aluguel" em `WaConfig` garante uma única conexão durante deploys.
+
 ## Estrutura
 
 ```

@@ -28,7 +28,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const order = await prisma.order.findUnique({
     where: { id: id.data },
-    select: { type: true, status: true, subtotal: true },
+    select: { type: true, status: true, subtotal: true, discount: true },
   });
   if (!order) return jsonError("Pedido não encontrado.", 404);
   if (order.type !== "DELIVERY") return jsonError("Somente pedidos de delivery têm taxa de entrega.", 409);
@@ -37,7 +37,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const updated = toBoardOrder(
     await prisma.order.update({
       where: { id: id.data },
-      data: { deliveryFee, total: order.subtotal + deliveryFee },
+      data: { deliveryFee, total: order.subtotal - order.discount + deliveryFee },
       include: orderInclude,
     }),
   );

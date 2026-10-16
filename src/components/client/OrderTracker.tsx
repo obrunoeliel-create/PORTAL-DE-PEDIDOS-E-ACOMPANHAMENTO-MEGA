@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { io } from "socket.io-client";
 import type { OrderStatusValue, TrackedOrder } from "@/types/order";
 import { formatBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
@@ -9,7 +10,9 @@ import { itemTitle } from "@/lib/item-title";
 import { Logo } from "@/components/brand/Logo";
 import { PixQrCode } from "./PixQrCode";
 
+// Com o canal em tempo real ligado, a consulta periódica é só uma reserva.
 const POLL_MS = 8000;
+const POLL_LIVE_MS = 30_000;
 
 const STEPS: { status: OrderStatusValue; label: string; icon: string }[] = [
   { status: "PENDING", label: "Recebido", icon: "📝" },
@@ -55,13 +58,26 @@ export function OrderTracker({ token }: { token: string }) {
   }, [token]);
 
   const finished = order?.status === "COMPLETED" || order?.status === "CANCELED";
+  const [live, setLive] = useState(false);
+
+  // Tempo real: a loja mudou o pedido → a página atualiza na hora.
+  useEffect(() => {
+    if (finished) return;
+    const socket = io("/track", { path: "/socket.io", auth: { token }, transports: ["websocket", "polling"] });
+    socket.on("connect", () => setLive(true));
+    socket.on("disconnect", () => setLive(false));
+    socket.on("changed", () => void load());
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, load, finished]);
 
   useEffect(() => {
     load();
     if (finished) return;
-    const id = setInterval(load, POLL_MS);
+    const id = setInterval(load, live ? POLL_LIVE_MS : POLL_MS);
     return () => clearInterval(id);
-  }, [load, finished]);
+  }, [load, finished, live]);
 
   if (error) {
     return (
@@ -141,6 +157,26 @@ export function OrderTracker({ token }: { token: string }) {
           </ol>
         )}
 
+        {order.status === "OUT_FOR_DELIVERY" && order.type === "DELIVERY" && (
+          <div className="flex gap-3 rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-stone-200">
+            <span className="text-3xl" aria-hidden>
+              🛵
+            </span>
+            <p>
+              {order.driverName ? (
+                <>
+                  <strong>{order.driverName}</strong> está levando seu pedido.{" "}
+                </>
+              ) : (
+                <>Seu pedido está a caminho. </>
+              )}
+              O motoboy pode ter saído com outros pedidos na frente, mas já já chega aí!
+            </p>
+          </div>
+        )}
+
+        {(order.canRate || order.rating) && <RatingCard token={token} initial={order.rating} />}
+
         {order.feePending && !canceled && (
           <div className="flex gap-3 rounded-2xl bg-mega-100 p-4 text-sm text-ink-900 ring-1 ring-mega-300">
             <span className="text-2xl" aria-hidden>
@@ -213,6 +249,7 @@ export function OrderTracker({ token }: { token: string }) {
           </ul>
           <div className="mt-4 space-y-1.5 border-t border-dashed border-stone-200 pt-3">
             <Row label="Subtotal" value={formatBRL(order.subtotal)} />
+            {order.discount > 0 && <Row label={`Cupom ${order.couponCode ?? ""}`} value={`− ${formatBRL(order.discount)}`} />}
             {order.type === "DELIVERY" && (
               <Row
                 label="Taxa de entrega"
@@ -227,7 +264,7 @@ export function OrderTracker({ token }: { token: string }) {
         </section>
 
         <p className="text-center text-xs text-stone-400">
-          {finished ? "Pedido finalizado." : "🔄 Atualiza sozinho a cada poucos segundos."} Guarde este link para acompanhar.
+          {finished ? "Pedido finalizado." : live ? "🟢 Atualiza sozinho, na hora." : "🔄 Atualiza sozinho a cada poucos segundos."} Guarde este link para acompanhar.
         </p>
         <Link href="/" className="btn-ghost w-full py-3">
           Voltar ao cardápio
@@ -248,4 +285,84 @@ function Row({ label, value, bold, highlight }: { label: string; value: string; 
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main className="flex min-h-screen flex-col items-center justify-center p-6 text-center">{children}</main>;
+}
+
+/** Avaliação do pedido: 1 a 5 estrelas e um comentário opcional. */
+function RatingCard({ token, initial }: { token: string; initial: number | null }) {
+  const [stars, setStars] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [sent, setSent] = useState<number | null>(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    if (!stars) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/orders/track/${token}/rating`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stars, comment: comment.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 409) return setError(data.error ?? "Não foi possível enviar. Tente de novo.");
+      setSent(stars);
+    } catch {
+      setError("Falha de conexão. Tente de novo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="card p-4 text-center text-sm">
+        <p className="text-2xl" aria-label={`Nota ${sent} de 5`}>
+          {"⭐".repeat(sent)}
+        </p>
+        <p className="mt-1 font-semibold">Obrigado pela avaliação! 🧡</p>
+      </div>
+    );
+  }
+  const shown = hover || stars;
+  return (
+    <div className="card space-y-3 p-4 text-sm">
+      <h2 className="font-display text-base font-bold">Como foi o seu pedido?</h2>
+      <div className="flex justify-center gap-1" role="radiogroup" aria-label="Nota de 1 a 5" onMouseLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={stars === n}
+            aria-label={`${n} ${n === 1 ? "estrela" : "estrelas"}`}
+            onMouseEnter={() => setHover(n)}
+            onClick={() => setStars(n)}
+            className={`text-4xl transition ${n <= shown ? "scale-110" : "opacity-30 grayscale"}`}
+          >
+            ⭐
+          </button>
+        ))}
+      </div>
+      {stars > 0 && (
+        <>
+          <textarea
+            className="input resize-none"
+            rows={2}
+            maxLength={300}
+            placeholder={stars <= 3 ? "O que podemos melhorar? (opcional)" : "Quer deixar um recado? (opcional)"}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            aria-label="Comentário"
+          />
+          {error && <p className="font-medium text-brand-700">{error}</p>}
+          <button type="button" className="btn-primary w-full" disabled={busy} onClick={send}>
+            {busy ? "Enviando…" : "Enviar avaliação"}
+          </button>
+        </>
+      )}
+    </div>
+  );
 }

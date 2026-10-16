@@ -57,7 +57,12 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
   const [payment, setPayment] = useState<PaymentMethodValue>(settings.pixEnabled ? "PIX" : "CARD");
   const [changeFor, setChangeFor] = useState("");
   const [notes, setNotes] = useState("");
-  const [waUpdates, setWaUpdates] = useState(false);
+  const [waUpdates, setWaUpdates] = useState(true);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; discount: number; label: string } | null>(null);
+  const [couponMsg, setCouponMsg] = useState<string | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -94,7 +99,42 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
   // Delivery: taxa do bairro escolhido; sem bairro da lista, a loja define depois (null = a definir).
   // Valor só de exibição: o servidor sempre busca a taxa no cadastro.
   const deliveryFee = mode?.type === "DELIVERY" ? (zone ? zone.fee : null) : 0;
-  const total = subtotal + (deliveryFee ?? 0);
+  const discount = coupon ? Math.min(coupon.discount, subtotal) : 0;
+  const total = subtotal - discount + (deliveryFee ?? 0);
+
+  // Carrinho mudou: o desconto do cupom precisa ser conferido de novo.
+  useEffect(() => {
+    setCoupon(null);
+  }, [subtotal]);
+
+  async function applyCoupon() {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponBusy(true);
+    setCouponMsg(null);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          phone,
+          items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, halfProductId: i.halfProductId, addonIds: i.addonIds, quantity: i.quantity })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCoupon(null);
+        setCouponMsg(data.error ?? "Cupom inválido.");
+        return;
+      }
+      setCoupon(data);
+    } catch {
+      setCouponMsg("Falha de conexão. Tente de novo.");
+    } finally {
+      setCouponBusy(false);
+    }
+  }
   const district = zone ? zone.name : effective.district;
 
   const clearErr = (field: string) =>
@@ -200,6 +240,8 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
         paymentMethod: payment,
         changeFor: payment === "CASH" && changeCents ? changeCents : undefined,
         whatsappUpdates: waUpdates,
+        marketingOptIn,
+        couponCode: coupon?.code,
       }),
       notes: notes || undefined,
       items: cart.map((i) => ({
@@ -482,6 +524,20 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
                   </span>
                 </label>
               )}
+              {mode && mode.type !== "TABLE" && (
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border-2 border-stone-200 p-3 transition hover:border-stone-300">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-brand-600"
+                    checked={marketingOptIn}
+                    onChange={(e) => setMarketingOptIn(e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <span className="block font-semibold">🎟️ Aceito receber cupons e promoções no WhatsApp</span>
+                    <span className="text-stone-500">Opcional. Para parar a qualquer momento, é só responder SAIR.</span>
+                  </span>
+                </label>
+              )}
             </div>
           </Card>
 
@@ -657,6 +713,45 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
           </Card>
           )}
 
+          {mode && mode.type !== "TABLE" && (
+            <Card title="Cupom de desconto">
+              {coupon ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-sm ring-1 ring-emerald-200">
+                  <span>
+                    <span className="block font-semibold text-emerald-800">
+                      ✅ {coupon.code} · {coupon.label} de desconto
+                    </span>
+                    <span className="text-emerald-700">− {formatBRL(discount)} nos itens</span>
+                  </span>
+                  <button type="button" className="text-sm font-semibold text-stone-500" onClick={() => (setCoupon(null), setCouponInput(""))}>
+                    Remover
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    className={`input font-mono uppercase ${fieldErrors.couponCode ? "border-brand-500 ring-4 ring-brand-100" : ""}`}
+                    placeholder="Tem um cupom?"
+                    value={couponInput}
+                    maxLength={30}
+                    onChange={(e) => (setCouponInput(e.target.value.toUpperCase()), setCouponMsg(null), clearErr("couponCode"))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void applyCoupon();
+                      }
+                    }}
+                    aria-label="Cupom de desconto"
+                  />
+                  <button type="button" className="btn-ghost shrink-0" disabled={couponBusy || !couponInput.trim()} onClick={() => void applyCoupon()}>
+                    {couponBusy ? "…" : "Aplicar"}
+                  </button>
+                </div>
+              )}
+              {(couponMsg || fieldErrors.couponCode) && <p className="mt-2 text-sm font-medium text-brand-700">{couponMsg ?? fieldErrors.couponCode}</p>}
+            </Card>
+          )}
+
           <Card title="Observações do pedido">
             <textarea
               className="input resize-none"
@@ -672,6 +767,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
 
         <div className="space-y-2 border-t border-stone-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm">
           <Row label="Subtotal" value={formatBRL(subtotal)} />
+          {discount > 0 && <Row label={`Cupom ${coupon?.code}`} value={`− ${formatBRL(discount)}`} />}
           {mode?.type === "DELIVERY" && (
             <Row
               label="Taxa de entrega"

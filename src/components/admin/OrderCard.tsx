@@ -169,6 +169,11 @@ export function OrderCard({
               {feePending ? "+ taxa a definir" : `inclui taxa ${formatBRL(order.deliveryFee ?? 0)}`}
             </span>
           )}
+          {order.discount > 0 && (
+            <span className="block text-xs font-semibold text-emerald-700">
+              🎟️ {order.couponCode} −{formatBRL(order.discount)}
+            </span>
+          )}
         </span>
       </div>
 

@@ -26,6 +26,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [withAddress, setWithAddress] = useState(false);
   const [zoneId, setZoneId] = useState("");
   const [addr, setAddr] = useState({ street: "", number: "", district: "", complement: "", reference: "", zip: "" });
@@ -71,6 +72,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
               name,
               phone,
               pin,
+              marketingOptIn,
               ...(email.trim() && { email: email.trim() }),
               ...(withAddress && {
                 address: {
@@ -162,6 +164,13 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
 
           {tab === "register" && (
             <>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-stone-200 p-3 text-sm">
+                <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
+                <span>
+                  <span className="block font-semibold">🎟️ Aceito receber cupons e promoções no WhatsApp</span>
+                  <span className="text-stone-500">Opcional. Para parar, é só responder SAIR.</span>
+                </span>
+              </label>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-stone-200 p-3 text-sm">
                 <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={withAddress} onChange={(e) => setWithAddress(e.target.checked)} />
                 <span>

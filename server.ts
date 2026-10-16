@@ -6,7 +6,7 @@ import { loadEnvConfig } from "@next/env";
 import next from "next";
 import { Server } from "socket.io";
 import { SESSION_COOKIE, isAllowedOrigin, readCookie, verifySession } from "./src/lib/jwt";
-import { STAFF_ROOM, setIo } from "./src/lib/socket-server";
+import { STAFF_ROOM, TRACK_NAMESPACE, setIo, trackRoom } from "./src/lib/socket-server";
 
 const dev = process.env.NODE_ENV !== "production";
 // Carrega o .env antes de ler PORT/APP_HOST (o Next só o carregaria dentro de prepare()).
@@ -25,6 +25,7 @@ function clientIp(req: IncomingMessage): string {
 }
 
 const app = next({ dev, hostname: host, port });
+const TRACKING_TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
@@ -64,11 +65,24 @@ app.prepare().then(() => {
     socket.join(STAFF_ROOM);
   });
 
+  // "Acompanhe seu pedido" (público): o cliente entra só na sala do próprio pedido, identificada pelo
+  // token secreto do link. A sala recebe apenas um sinal de "mudou"; os dados vêm da API do pedido.
+  io.of(TRACK_NAMESPACE).on("connection", (socket) => {
+    const token = (socket.handshake.auth as { token?: unknown } | undefined)?.token;
+    if (typeof token !== "string" || !TRACKING_TOKEN_RE.test(token)) {
+      socket.disconnect(true);
+      return;
+    }
+    socket.join(trackRoom(token));
+  });
+
   setIo(io);
 
   httpServer.listen(port, host, () => {
     console.log(`> OrderFlow OS pronto em http://${host}:${port} (${dev ? "dev" : "produção"})`);
+    process.env.INTERNAL_TICK_SECRET = randomBytes(32).toString("hex");
     startMesaPremiadaClock();
+    startWhatsAppClock();
   });
 });
 
@@ -77,7 +91,6 @@ app.prepare().then(() => {
  * (que roda dentro do Next, com acesso ao banco). O segredo é gerado aqui e só existe neste processo.
  */
 function startMesaPremiadaClock() {
-  process.env.INTERNAL_TICK_SECRET = randomBytes(32).toString("hex");
   const local = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
   const base = `http://${local}:${port}`;
   const tick = async () => {
@@ -95,4 +108,26 @@ function startMesaPremiadaClock() {
   };
   setTimeout(tick, 15_000);
   setInterval(tick, 60_000).unref();
+}
+
+/**
+ * Relógio do robô do WhatsApp (a cada 20 s): mantém a conexão com o número da loja e envia a fila
+ * (avisos de pedido, avaliações e cupons agendados, campanhas). Roda dentro do Next pela rota interna.
+ */
+function startWhatsAppClock() {
+  const local = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
+  const base = `http://${local}:${port}`;
+  const tick = async () => {
+    try {
+      await fetch(`${base}/api/internal/wa/tick`, {
+        method: "POST",
+        headers: { Origin: base, "x-internal-secret": process.env.INTERNAL_TICK_SECRET ?? "" },
+        signal: AbortSignal.timeout(60_000),
+      });
+    } catch (err) {
+      console.warn("[whatsapp] relógio do robô falhou:", err instanceof Error ? err.message : err);
+    }
+  };
+  setTimeout(tick, 8_000);
+  setInterval(tick, 20_000).unref();
 }

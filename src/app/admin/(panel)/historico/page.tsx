@@ -211,6 +211,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
                       </ul>
                       <dl className="mt-3 space-y-1 border-t border-stone-200 pt-2">
                         <Row label="Subtotal" value={formatBRL(o.subtotal)} />
+                        {o.discount > 0 && <Row label={`Cupom ${o.couponCode ?? ""}`} value={`− ${formatBRL(o.discount)}`} />}
                         {o.type === "DELIVERY" && <Row label="Taxa de entrega" value={o.deliveryFee === null ? "não definida" : formatBRL(o.deliveryFee)} />}
                         <Row label="Total" value={formatBRL(o.total)} strong />
                       </dl>

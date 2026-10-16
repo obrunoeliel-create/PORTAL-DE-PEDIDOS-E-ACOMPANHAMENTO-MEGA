@@ -24,6 +24,8 @@ const cspPrint = [...cspParts, "frame-ancestors 'self'"].join("; ");
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Robô do WhatsApp (Baileys): roda direto no Node, fora do empacotamento do Next.
+  serverExternalPackages: ["@whiskeysockets/baileys"],
   async headers() {
     const headers = [
       { key: "X-Content-Type-Options", value: "nosniff" },

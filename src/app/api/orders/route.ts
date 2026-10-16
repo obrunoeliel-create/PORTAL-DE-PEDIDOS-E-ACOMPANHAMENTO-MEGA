@@ -13,6 +13,9 @@ import { verifyTableToken } from "@/lib/tables";
 import { getCurrentCustomer } from "@/lib/customer-session";
 import { getOrOpenTableSession, tableSessionTotals } from "@/lib/table-sessions";
 import { buildOrderMessage, buildWhatsAppUrl, formatAddress } from "@/lib/whatsapp";
+import { checkCoupon, consumeCoupon } from "@/lib/coupons";
+import { notifyOrderCreated } from "@/lib/order-notify";
+import { touchContact } from "@/lib/wa/automations";
 
 export const runtime = "nodejs";
 
@@ -73,7 +76,16 @@ export async function POST(req: Request) {
     deliveryFee = zone.fee;
     district = zone.name;
   }
-  const total = priced.subtotal + (deliveryFee ?? 0);
+  // Cupom (delivery e balcão): validado aqui, com o subtotal recalculado e o WhatsApp do pedido.
+  let discount = 0;
+  let couponCode: string | null = null;
+  if (input.type !== "TABLE" && input.couponCode) {
+    const check = await checkCoupon(input.couponCode, input.customerPhone, priced.subtotal);
+    if (!check.ok) return NextResponse.json({ error: check.error, fields: { couponCode: check.error } }, { status: 422 });
+    discount = check.discount;
+    couponCode = check.code;
+  }
+  const total = priced.subtotal - discount + (deliveryFee ?? 0);
 
   // Mesa paga no caixa (presencial); delivery e balcão usam a forma escolhida pelo cliente.
   const paymentMethod = input.type === "TABLE" ? "ON_SITE" : input.paymentMethod;
@@ -88,9 +100,14 @@ export async function POST(req: Request) {
   // Cliente com cadastro (cookie): o pedido fica vinculado à conta dele.
   const customer = input.type === "TABLE" ? null : await getCurrentCustomer();
 
-  const order = await prisma.order.create({
+  const order = await prisma.$transaction(async (tx) => {
+    // O uso do cupom é consumido junto com a criação do pedido: dois pedidos não usam o último uso.
+    if (couponCode && !(await consumeCoupon(tx, couponCode))) throw new CouponUsedError();
+    return tx.order.create({
     data: {
       customerId: customer?.id ?? null,
+      couponCode,
+      discount,
       tableSessionId,
       // 192 bits aleatórios: o link de acompanhamento não pode ser adivinhado a partir do número do pedido.
       trackingToken: randomBytes(24).toString("base64url"),
@@ -118,6 +135,11 @@ export async function POST(req: Request) {
     },
     include: orderInclude,
   });
+  }).catch((err) => {
+    if (err instanceof CouponUsedError) return null;
+    throw err;
+  });
+  if (!order) return NextResponse.json({ error: "Este cupom acabou de ser usado.", fields: { couponCode: "Cupom já usado." } }, { status: 409 });
 
   if (customer) {
     // "Salvar este endereço no meu cadastro" (delivery com endereço novo)
@@ -141,6 +163,13 @@ export async function POST(req: Request) {
 
   // 4) Notifica o painel em tempo real.
   emitToStaff("order:new", order);
+
+  // WhatsApp: registra o contato (e o aceite de promoções, se marcado) e envia o "pedido recebido".
+  if (input.type !== "TABLE") {
+    await touchContact(input.customerPhone, input.customerName, input.marketingOptIn);
+    if (customer && input.marketingOptIn) await prisma.customer.update({ where: { id: customer.id }, data: { marketingOptIn: true } });
+    void notifyOrderCreated(order.id);
+  }
 
   const pixPayload = orderPixPayload(settings, order);
 
@@ -198,3 +227,5 @@ function changeForError() {
     { status: 422 },
   );
 }
+
+class CouponUsedError extends Error {}

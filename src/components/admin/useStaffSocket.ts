@@ -11,6 +11,9 @@ type Handlers = {
   onCampaign?: () => void;
   /** Chamados de mesa ("Chamar atendente") mudaram: lista atual de pendentes. */
   onTableCalls?: (calls: unknown) => void;
+  /** Robô do WhatsApp: mudou a conexão (QR Code, conectado...) ou o andamento de uma mensagem. */
+  onWaStatus?: (status: unknown) => void;
+  onWaMessage?: () => void;
   /** Chamado a cada (re)conexão — use para ressincronizar o estado. */
   onConnect?: () => void;
 };
@@ -36,6 +39,8 @@ export function useStaffSocket(handlers: Handlers) {
     socket.on("order:new", (o: BoardOrder) => ref.current.onNew?.(o));
     socket.on("order:updated", (o: BoardOrder) => ref.current.onUpdated?.(o));
     socket.on("campaign:updated", () => ref.current.onCampaign?.());
+    socket.on("wa:status", (p: unknown) => ref.current.onWaStatus?.(p));
+    socket.on("wa:message", () => ref.current.onWaMessage?.());
     socket.on("tablecalls:changed", (p: { calls: unknown }) => ref.current.onTableCalls?.(p.calls));
     return () => {
       socket.disconnect();

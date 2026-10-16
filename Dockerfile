@@ -5,8 +5,9 @@
 # ---------- 1) Dependências ----------
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
+# git: uma dependência do robô do WhatsApp (libsignal) é baixada direto do GitHub.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && apt-get install -y --no-install-recommends openssl ca-certificates git \
  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY prisma ./prisma

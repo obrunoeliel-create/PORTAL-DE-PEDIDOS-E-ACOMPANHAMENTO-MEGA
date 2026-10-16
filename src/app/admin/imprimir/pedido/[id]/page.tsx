@@ -76,7 +76,8 @@ export default async function PrintOrderPage({
       )}
       <Sep />
 
-      {isDelivery && <Row left="Subtotal" right={formatBRL(order.subtotal)} />}
+      {(isDelivery || order.discount > 0) && <Row left="Subtotal" right={formatBRL(order.subtotal)} />}
+      {order.discount > 0 && <Row left={`Cupom ${order.couponCode ?? ""}`} right={`-${formatBRL(order.discount)}`} />}
       {isDelivery && <Row left="Entrega" right={order.deliveryFee === null ? "a definir" : formatBRL(order.deliveryFee)} />}
       <Row className="r-total" left="TOTAL" right={formatBRL(order.total)} />
       <div>

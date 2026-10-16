@@ -34,6 +34,13 @@ const customerName = text(2, 80).refine((v) => (v.match(/\p{L}/gu) ?? []).length
 
 const cents = z.number().int().min(0).max(1_000_000); // até R$ 10.000,00
 
+/** Código de cupom: letras, números e hífen. */
+const couponCode = z
+  .string()
+  .max(40)
+  .transform((v) => v.trim().toUpperCase())
+  .pipe(z.string().regex(/^[A-Z0-9-]{3,30}$/, "Cupom inválido."));
+
 /** CEP opcional: aceita com ou sem traço; guarda só os 8 dígitos. */
 const cep = z
   .string()
@@ -82,6 +89,9 @@ const remoteOrder = {
   paymentMethod: z.enum(["PIX", "CARD", "CASH"]),
   changeFor: cents.optional(),
   whatsappUpdates: z.boolean().default(false),
+  // Aceitou receber cupons e promoções no WhatsApp (consentimento explícito, LGPD art. 7º, I)
+  marketingOptIn: z.boolean().default(false),
+  couponCode: couponCode.optional(),
 };
 
 export const createOrderSchema = z.discriminatedUnion("type", [
@@ -131,7 +141,7 @@ const optionalEmail = z
   .pipe(z.string().email("Informe um e-mail válido ou deixe em branco.").optional());
 
 export const customerRegisterSchema = z
-  .object({ name: customerName, phone: whatsappPhone, email: optionalEmail, pin, address: customerAddressSchema.optional() })
+  .object({ name: customerName, phone: whatsappPhone, email: optionalEmail, pin, address: customerAddressSchema.optional(), marketingOptIn: z.boolean().default(false) })
   .strict();
 
 export const customerLoginSchema = z
@@ -184,6 +194,7 @@ const staffBase = {
 };
 const staffRemote = {
   ...staffBase,
+  couponCode: couponCode.optional(),
   customerPhone: staffPhone,
   paymentMethod: z.enum(["PIX", "CARD", "CASH"]),
   changeFor: cents.optional(),

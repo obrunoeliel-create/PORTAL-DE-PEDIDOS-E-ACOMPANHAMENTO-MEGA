@@ -7,6 +7,8 @@ import { getStoreSettings } from "@/lib/settings";
 import { orderPixPayload } from "@/lib/pix";
 import type { TrackedOrder } from "@/types/order";
 import { tableSessionTotals } from "@/lib/table-sessions";
+import { canRate } from "@/lib/rating";
+import { firstName } from "@/lib/wa/templates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +22,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   if (!token.success) return jsonError("Pedido não encontrado.", 404);
 
   const [order, settings] = await Promise.all([
-    prisma.order.findUnique({ where: { trackingToken: token.data }, include: { items: true, tableSession: { select: { tableNumber: true, closedAt: true, discount: true, total: true } } } }),
+    prisma.order.findUnique({ where: { trackingToken: token.data }, include: { items: true, driver: { select: { name: true } }, rating: { select: { stars: true } }, tableSession: { select: { tableNumber: true, closedAt: true, discount: true, total: true } } } }),
     getStoreSettings(),
   ]);
   if (!order) return jsonError("Pedido não encontrado.", 404);
@@ -44,7 +46,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
     subtotal: order.subtotal,
     deliveryFee: order.deliveryFee,
     feePending: order.type === "DELIVERY" && order.deliveryFee === null,
+    couponCode: order.couponCode,
+    discount: order.discount,
     total: order.total,
+    driverName: order.type === "DELIVERY" && order.driver && (order.status === "OUT_FOR_DELIVERY" || order.status === "COMPLETED") ? (firstName(order.driver.name) || null) : null,
+    rating: order.rating?.stars ?? null,
+    canRate: canRate(order),
     paymentMethod: order.paymentMethod,
     changeFor: order.changeFor,
     createdAt: order.createdAt.toISOString(),

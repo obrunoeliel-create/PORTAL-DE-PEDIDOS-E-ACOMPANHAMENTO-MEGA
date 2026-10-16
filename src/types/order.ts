@@ -35,6 +35,9 @@ export type BoardOrder = {
   paymentMethod: PaymentMethodValue;
   changeFor: number | null;
   subtotal: number;
+  /** Cupom usado no pedido e o desconto dado (centavos) */
+  couponCode: string | null;
+  discount: number;
   /** null = taxa de entrega ainda não definida pelo operador */
   deliveryFee: number | null;
   total: number;
@@ -75,7 +78,14 @@ export type TrackedOrder = {
   subtotal: number;
   deliveryFee: number | null;
   feePending: boolean;
+  couponCode: string | null;
+  discount: number;
   total: number;
+  /** Primeiro nome do motoboy (só depois que o pedido saiu para entrega) */
+  driverName: string | null;
+  /** Nota que o cliente deu (1 a 5); canRate = pedido concluído há menos de 7 dias e ainda sem nota */
+  rating: number | null;
+  canRate: boolean;
   paymentMethod: PaymentMethodValue;
   changeFor: number | null;
   createdAt: string;

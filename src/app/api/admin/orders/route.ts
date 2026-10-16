@@ -8,6 +8,9 @@ import { PayloadError, jsonError, readJson, validationError } from "@/lib/http";
 import { PricingError, priceOrderItems } from "@/lib/pricing";
 import { getOrOpenTableSession } from "@/lib/table-sessions";
 import { emitToStaff } from "@/lib/socket-server";
+import { checkCoupon, consumeCoupon } from "@/lib/coupons";
+import { notifyOrderCreated } from "@/lib/order-notify";
+import { touchContact } from "@/lib/wa/automations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +65,16 @@ export async function POST(req: Request) {
     deliveryFee = zone.fee;
     district = zone.name;
   }
-  const total = priced.subtotal + (deliveryFee ?? 0);
+  const phoneForCoupon = input.type === "TABLE" ? "" : input.customerPhone;
+  let discount = 0;
+  let couponCode: string | null = null;
+  if (input.type !== "TABLE" && input.couponCode) {
+    const check = await checkCoupon(input.couponCode, phoneForCoupon, priced.subtotal);
+    if (!check.ok) return NextResponse.json({ error: check.error, fields: { couponCode: check.error } }, { status: 422 });
+    discount = check.discount;
+    couponCode = check.code;
+  }
+  const total = priced.subtotal - discount + (deliveryFee ?? 0);
 
   const paymentMethod = input.type === "TABLE" ? "ON_SITE" : input.paymentMethod;
   const changeFor = input.type !== "TABLE" && input.paymentMethod === "CASH" ? input.changeFor : undefined;
@@ -76,8 +88,14 @@ export async function POST(req: Request) {
   const tableSessionId = input.type === "TABLE" ? await getOrOpenTableSession(input.tableNumber) : null;
   const now = new Date();
 
-  const order = await prisma.order.create({
+  const order = await prisma.$transaction(async (tx) => {
+    if (couponCode && !(await consumeCoupon(tx, couponCode))) return null;
+    return tx.order.create({
     data: {
+      couponCode,
+      discount,
+      // Com telefone, o cliente recebe os avisos do pedido no WhatsApp (pode responder SAIR).
+      whatsappUpdates: !!phone,
       trackingToken: randomBytes(24).toString("base64url"),
       type: input.type,
       status: "PREPARING",
@@ -106,9 +124,15 @@ export async function POST(req: Request) {
     },
     include: orderInclude,
   });
+  });
+  if (!order) return jsonError("Este cupom acabou de ser usado.", 409);
   if (customer) await prisma.customer.update({ where: { id: customer.id }, data: { lastOrderAt: now } });
 
   const board = toBoardOrder(order);
   emitToStaff("order:new", board);
+  if (phone) {
+    await touchContact(phone, input.customerName);
+    void notifyOrderCreated(order.id);
+  }
   return NextResponse.json({ order: board }, { status: 201 });
 }

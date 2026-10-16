@@ -20,6 +20,7 @@ const NAV = [
   { href: "/admin/financeiro", label: "Financeiro", icon: "💰", managerOnly: true },
   { href: "/admin/mesas", label: "Mesas", icon: "🪑", managerOnly: true },
   { href: "/admin/taxas", label: "Taxas", icon: "📍", managerOnly: true },
+  { href: "/admin/whatsapp", label: "WhatsApp", icon: "💬", managerOnly: true },
   { href: "/admin/contingencia", label: "Contingência", icon: "🛟", managerOnly: false },
 ];
 

@@ -138,6 +138,9 @@ model Order {
   notes             String?
   // Pedido lançado pela loja no portal (nome de quem lançou); null = feito pelo cliente
   createdBy         String?
+  // Cupom aplicado no pedido (código) e o desconto concedido em centavos
+  couponCode        String?
+  discount          Int           @default(0)
   // Cliente aceitou receber atualizações automáticas no WhatsApp (opt-in explícito)
   whatsappUpdates   Boolean       @default(false)
   waAcceptedAt      DateTime? // aviso "pedido aceito" enviado
@@ -152,6 +155,7 @@ model Order {
   tableSessionId    String?
   tableSession      TableSession? @relation(fields: [tableSessionId], references: [id])
   items             OrderItem[]
+  rating            OrderRating?
   acceptedAt        DateTime?
   dispatchedAt      DateTime?
   completedAt       DateTime?
@@ -241,6 +245,8 @@ model Customer {
   welcomeWaAt       DateTime?
   welcomeEmailAt    DateTime?
   welcomeError      String?
+  // Aceitou receber cupons e promoções no WhatsApp (consentimento LGPD, art. 7º, I)
+  marketingOptIn    Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -308,4 +314,151 @@ model TableCall {
 
   @@index([attendedAt])
   @@index([tableNumber, attendedAt])
+}
+
+// ======================= WhatsApp (robô da loja) =======================
+
+// Sessão do WhatsApp conectado pelo QR Code (credenciais e chaves de criptografia do protocolo),
+// guardada cifrada (AES-256-GCM). Assim o robô volta sozinho depois de reinícios e publicações.
+model WaAuth {
+  id        String   @id
+  data      String
+  updatedAt DateTime @updatedAt
+}
+
+// Configuração do robô e das automações (linha única).
+model WaConfig {
+  id                 Int       @id @default(1)
+  enabled            Boolean   @default(true)  // envio automático ligado
+  ratingEnabled      Boolean   @default(true)
+  ratingDelayHours   Int       @default(24)
+  couponEnabled      Boolean   @default(true)
+  couponDelayDays    Int       @default(7)
+  couponPercent      Int       @default(10)
+  couponValidityDays Int       @default(15)
+  couponPrefix       String    @default("VOLTE")
+  couponMinOrder     Int       @default(0)
+  deliveryEta        String    @default("40 a 60 minutos")
+  minIntervalSeconds Int       @default(4)    // pausa mínima entre mensagens (anti-bloqueio)
+  maxPerHour         Int       @default(150)
+  // Qual servidor está com o robô ligado (evita duas conexões ao mesmo tempo durante uma publicação)
+  leaseOwner         String?
+  leaseUntil         DateTime?
+  connectedPhone     String?
+  connectedName      String?
+  connectedAt        DateTime?
+  lastSyncAt         DateTime?
+  updatedAt          DateTime  @updatedAt
+}
+
+// Texto de cada mensagem automática, editável no portal ({{nome}}, {{pedido}}, {{valor}}, {{link}}...).
+model WaTemplate {
+  key       String   @id
+  body      String
+  active    Boolean  @default(true)
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+enum WaMessageStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELED
+}
+
+// Fila e histórico de todas as mensagens. dedupeKey única: a mesma mensagem nunca sai duas vezes.
+model WaMessage {
+  id          String          @id @default(cuid())
+  dedupeKey   String          @unique
+  kind        String // STATUS, RATING, COUPON, CAMPAIGN, MANUAL, REPLY
+  templateKey String?
+  vars        Json            @default("{}")
+  phone       String // só dígitos, com DDD (sem o 55)
+  body        String?         // texto final (preenchido no envio)
+  status      WaMessageStatus @default(QUEUED)
+  attempts    Int             @default(0)
+  error       String?
+  providerId  String?
+  provider    String?
+  orderId     String?
+  campaignId  String?
+  createdBy   String?
+  notBefore   DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  @@index([status, notBefore])
+  @@index([phone])
+  @@index([createdAt])
+  @@index([providerId])
+  @@index([campaignId])
+}
+
+// Registro de eventos do robô: conexão, desconexão, QR Code, erros, respostas de clientes.
+model WaEvent {
+  id        String   @id @default(cuid())
+  kind      String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Contato do WhatsApp (qualquer cliente que pediu com telefone): consentimento e descadastro.
+model WaContact {
+  phone          String    @id // só dígitos, com DDD
+  name           String?
+  jid            String?   // endereço real no WhatsApp (resolve o 9º dígito)
+  marketingOptIn Boolean   @default(false)
+  optInAt        DateTime?
+  optOutAt       DateTime? // respondeu SAIR: não recebe mais nada automático
+  lastContactAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Campanha de mensagens para clientes que aceitaram promoções.
+model WaCampaign {
+  id           String    @id @default(cuid())
+  name         String
+  body         String
+  audience     String // OPTIN_ALL, INACTIVE, VIP
+  inactiveDays Int?
+  couponCode   String?
+  status       String    @default("DRAFT") // DRAFT, SENDING, DONE, CANCELED
+  total        Int       @default(0)
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+}
+
+// Cupom de desconto: geral (código para todos) ou pessoal (só para um WhatsApp).
+model Coupon {
+  code       String   @id
+  kind       String // PERCENT ou FIXED
+  value      Int // % (PERCENT) ou centavos (FIXED)
+  minOrder   Int      @default(0)
+  validUntil DateTime
+  maxUses    Int      @default(1)
+  usedCount  Int      @default(0)
+  phone      String? // cupom pessoal
+  active     Boolean  @default(true)
+  source     String   @default("MANUAL") // MANUAL, COMEBACK, CAMPAIGN
+  createdAt  DateTime @default(now())
+}
+
+// Avaliação do pedido (link do acompanhamento ou resposta 1 a 5 no WhatsApp).
+model OrderRating {
+  orderId   String   @id
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stars     Int
+  comment   String?
+  source    String // LINK ou WHATSAPP
+  createdAt DateTime @default(now())
 }
