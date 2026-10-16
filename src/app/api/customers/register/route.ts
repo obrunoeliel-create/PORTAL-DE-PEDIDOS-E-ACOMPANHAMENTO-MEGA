@@ -52,6 +52,7 @@ export async function POST(req: Request) {
       addressDistrict: district,
       addressComplement: address?.complement ?? null,
       addressReference: address?.reference ?? null,
+      addressZip: address?.zip ?? null,
       zoneId,
     },
     select: customerSelect,

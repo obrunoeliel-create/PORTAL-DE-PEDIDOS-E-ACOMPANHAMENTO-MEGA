@@ -5,6 +5,8 @@ import type { CustomerProfile, DeliveryZoneOption } from "@/types/menu";
 import { formatBRL } from "@/lib/money";
 import { Logo } from "@/components/brand/Logo";
 import { Field, errInput, hasName, isValidMobile, maskPhone } from "./form";
+import { CepField } from "./CepField";
+import { matchZone } from "@/lib/cep";
 
 type Props = {
   initialTab?: "login" | "register";
@@ -26,7 +28,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
   const [pin2, setPin2] = useState("");
   const [withAddress, setWithAddress] = useState(false);
   const [zoneId, setZoneId] = useState("");
-  const [addr, setAddr] = useState({ street: "", number: "", district: "", complement: "", reference: "" });
+  const [addr, setAddr] = useState({ street: "", number: "", district: "", complement: "", reference: "", zip: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -77,6 +79,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
                   district: zone ? zone.name : addr.district,
                   complement: addr.complement || undefined,
                   reference: addr.reference || undefined,
+                  zip: addr.zip.length === 8 ? addr.zip : undefined,
                   zoneId: zone?.id,
                 },
               }),
@@ -168,6 +171,17 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
               </label>
               {withAddress && (
                 <div className="space-y-3 rounded-2xl bg-[#faf7f2] p-3">
+                  <CepField
+                    id="acc-cep"
+                    value={addr.zip}
+                    onChange={(zip) => setAddr((a) => ({ ...a, zip }))}
+                    onFound={(found) => {
+                      setAddr((a) => ({ ...a, street: found.street || a.street, district: found.district || a.district }));
+                      const z = matchZone(zones, found.district);
+                      if (zones.length) setZoneId(z ? z.id : OTHER);
+                      setTimeout(() => document.getElementById("acc-number")?.focus(), 50);
+                    }}
+                  />
                   {zones.length > 0 && (
                     <Field id="acc-zone" label="Bairro" required error={errors.zone}>
                       <select id="acc-zone" className={errInput(!!errors.zone)} value={zoneId} onChange={(e) => setZoneId(e.target.value)}>

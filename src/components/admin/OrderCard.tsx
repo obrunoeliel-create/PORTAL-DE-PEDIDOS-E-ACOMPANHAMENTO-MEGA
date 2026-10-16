@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { BoardOrder, OrderStatusValue } from "@/types/order";
+import type { BoardOrder, DriverDTO, OrderStatusValue } from "@/types/order";
 import { formatBRL, parseBRL } from "@/lib/money";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL } from "@/lib/labels";
 import { itemTitle } from "@/lib/item-title";
@@ -47,18 +47,25 @@ export function OrderCard({
   onChangeTable,
   storeName,
   highlight,
+  drivers = [],
 }: {
   order: BoardOrder;
   busy: boolean;
-  onStatus: (order: BoardOrder, status: OrderStatusValue) => void;
+  onStatus: (order: BoardOrder, status: OrderStatusValue, driverId?: string) => void;
   onSetFee: (order: BoardOrder, fee: number) => Promise<boolean>;
   onChangeTable: (order: BoardOrder, tableNumber: number) => Promise<boolean>;
   storeName: string;
   highlight?: boolean;
+  /** Motoboys ativos: escolher quem leva o delivery ao clicar em "Saiu p/ entrega". */
+  drivers?: DriverDTO[];
 }) {
+  const [driverId, setDriverId] = useState(order.driverId ?? "");
   const canCancel = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY"].includes(order.status);
   const isDelivery = order.type === "DELIVERY";
   const feePending = isDelivery && order.deliveryFee === null;
+  // Delivery em preparo: precisa escolher o motoboy antes de liberar a entrega.
+  const choosingDriver = isDelivery && order.status === "PREPARING" && drivers.length > 0;
+  const needDriver = choosingDriver && !driverId;
 
   function notifyCustomer() {
     const text = buildCustomerUpdateMessage({
@@ -107,6 +114,11 @@ export function OrderCard({
       <div>
         <p className="flex items-center gap-1.5 font-medium">
           {order.customerName}
+          {order.createdBy && (
+            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-stone-600" title={`Lançado no portal por ${order.createdBy}`}>
+              🏪 Loja
+            </span>
+          )}
           {order.customerId && (
             <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800" title="Cliente com cadastro">
               ⭐ Cadastro
@@ -179,16 +191,30 @@ export function OrderCard({
 
       {order.whatsappUpdates && <WhatsAppStatus order={order} />}
 
-      {order.driver && <p className="text-stone-600">🛵 {order.driver.name}</p>}
+      {order.driver && !choosingDriver && <p className="text-stone-600">🛵 Motoboy: <strong>{order.driver.name}</strong></p>}
+
+      {choosingDriver && !feePending && (
+        <label className={`block rounded-xl p-2.5 ${needDriver ? "bg-sky-50 ring-2 ring-sky-300" : "bg-stone-50"}`}>
+          <span className="mb-1 block text-xs font-bold text-sky-900">🛵 Motoboy que vai levar</span>
+          <select className="input py-2" value={driverId} disabled={busy} onChange={(e) => setDriverId(e.target.value)} aria-label="Motoboy da entrega">
+            <option value="">— Escolha o motoboy —</option>
+            {drivers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {(nextActions(order).length > 0 || canCancel) && (
         <div className="flex gap-2">
           {nextActions(order).map((a) => (
             <button
               key={a.status}
-              disabled={busy || feePending}
-              title={feePending ? "Defina a taxa de entrega primeiro" : undefined}
-              onClick={() => onStatus(order, a.status)}
+              disabled={busy || feePending || (a.status === "OUT_FOR_DELIVERY" && needDriver)}
+              title={feePending ? "Defina a taxa de entrega primeiro" : a.status === "OUT_FOR_DELIVERY" && needDriver ? "Escolha o motoboy primeiro" : undefined}
+              onClick={() => onStatus(order, a.status, a.status === "OUT_FOR_DELIVERY" && isDelivery && driverId ? driverId : undefined)}
               className={`flex-1 rounded-xl px-3 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-40 ${a.className}`}
             >
               {a.label}
@@ -296,7 +322,7 @@ function TableEditor({ order, disabled, onSave }: { order: BoardOrder; disabled:
   const [value, setValue] = useState(String(order.tableNumber ?? ""));
   const [saving, setSaving] = useState(false);
   const n = Number(value);
-  const valid = /^d{1,3}$/.test(value) && n >= 1 && n !== order.tableNumber;
+  const valid = /^\d{1,3}$/.test(value) && n >= 1 && n !== order.tableNumber;
 
   if (!editing) {
     return (
@@ -323,7 +349,7 @@ function TableEditor({ order, disabled, onSave }: { order: BoardOrder; disabled:
       <input
         id={`table-${order.id}`}
         value={value}
-        onChange={(e) => setValue(e.target.value.replace(/D/g, "").slice(0, 3))}
+        onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 3))}
         inputMode="numeric"
         className="input w-16 py-1 text-center"
       />

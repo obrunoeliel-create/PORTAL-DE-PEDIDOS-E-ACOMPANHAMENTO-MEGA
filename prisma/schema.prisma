@@ -128,6 +128,7 @@ model Order {
   addressDistrict   String?
   addressComplement String?
   addressReference  String?
+  addressZip        String? // CEP (só dígitos)
   paymentMethod     PaymentMethod
   changeFor         Int?
   subtotal          Int
@@ -135,6 +136,8 @@ model Order {
   deliveryFee       Int?
   total             Int
   notes             String?
+  // Pedido lançado pela loja no portal (nome de quem lançou); null = feito pelo cliente
+  createdBy         String?
   // Cliente aceitou receber atualizações automáticas no WhatsApp (opt-in explícito)
   whatsappUpdates   Boolean       @default(false)
   waAcceptedAt      DateTime? // aviso "pedido aceito" enviado
@@ -230,6 +233,7 @@ model Customer {
   addressDistrict   String?
   addressComplement String?
   addressReference  String?
+  addressZip        String? // CEP (só dígitos)
   zoneId            String? // bairro da lista de taxas, quando escolhido
   orders            Order[]
   lastOrderAt       DateTime?

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { splitByPerson } from "@/lib/table-split";
 import type { BoardOrder } from "@/types/order";
 import { formatBRL } from "@/lib/money";
 import { STATUS_LABEL } from "@/lib/labels";
@@ -215,6 +217,9 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
           <p className="text-4xl">🍽️</p>
           <p className="mt-2 font-semibold">Nenhuma mesa com conta aberta</p>
           <p className="text-sm">A comanda abre sozinha no primeiro pedido feito pelo QR Code da mesa.</p>
+          <Link href="/admin/novo-pedido?mesa=" className="btn-primary mt-4 inline-flex">
+            ➕ Lançar pedido numa mesa
+          </Link>
         </div>
       )}
 
@@ -246,31 +251,43 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
                 </div>
               </header>
 
-              <ul className="flex-1 divide-y divide-stone-100 px-4">
-                {s.orders.map((o) => (
-                  <li key={o.id} className="py-3 text-sm">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="font-display font-bold">
-                        #{o.number} <span className="font-sans font-normal text-stone-500">· {o.customerName}</span>
-                      </span>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_BADGE[o.status]}`}>
-                        {STATUS_LABEL[o.status].split(" / ")[0]}
-                      </span>
-                    </div>
-                    <ul className="text-stone-600">
-                      {o.items.map((i) => (
-                        <li key={i.id} className="flex justify-between gap-2">
-                          <span>
-                            {i.quantity}x {itemTitle(i)}
-                            {i.variantName ? ` (${i.variantName})` : ""}
-                          </span>
-                          <span className="whitespace-nowrap">{formatBRL(i.totalPrice)}</span>
+              {/* Conta separada por nome: cada pessoa com seus pedidos e o subtotal; o total da mesa fica no rodapé. */}
+              <div className="flex-1 space-y-3 px-4 py-3">
+                {splitByPerson(s.orders).map((person) => (
+                  <section key={person.name} className="rounded-xl ring-1 ring-stone-200">
+                    <h3 className="flex items-center justify-between gap-2 rounded-t-xl bg-[#faf7f2] px-3 py-2 text-sm">
+                      <span className="font-display font-bold">👤 {person.name}</span>
+                      <span className="font-display font-extrabold">{formatBRL(person.subtotal)}</span>
+                    </h3>
+                    <ul className="divide-y divide-stone-100 px-3">
+                      {person.orders.map((o) => (
+                        <li key={o.id} className={`py-2 text-sm ${o.status === "CANCELED" ? "opacity-50" : ""}`}>
+                          <div className="mb-0.5 flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-stone-500">
+                              Pedido #{o.number}
+                              {o.createdBy ? " · lançado pela loja" : ""}
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_BADGE[o.status]}`}>
+                              {STATUS_LABEL[o.status].split(" / ")[0]}
+                            </span>
+                          </div>
+                          <ul className="text-stone-700">
+                            {o.items.map((i) => (
+                              <li key={i.id} className="flex justify-between gap-2">
+                                <span>
+                                  {i.quantity}x {itemTitle(i)}
+                                  {i.variantName ? ` (${i.variantName})` : ""}
+                                </span>
+                                <span className="whitespace-nowrap">{formatBRL(i.totalPrice)}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </li>
                       ))}
                     </ul>
-                  </li>
+                  </section>
                 ))}
-              </ul>
+              </div>
 
               <footer className="border-t border-stone-100 bg-[#faf7f2] p-4">
                 <div className="mb-3 flex items-baseline justify-between">
@@ -284,7 +301,12 @@ export function TableTabs({ initialSessions, initialCampaign }: { initialSession
                     Há pedido aguardando aceite: aceite ou cancele antes de fechar.
                   </p>
                 )}
-                <PrintButton kind="mesa" id={s.id} label="🖨️ Imprimir conta" className="btn-ghost mb-2 w-full" />
+                <div className="mb-2 grid grid-cols-2 gap-2">
+                  <Link href={`/admin/novo-pedido?mesa=${s.tableNumber}`} className="btn-ghost w-full">
+                    ➕ Adicionar itens
+                  </Link>
+                  <PrintButton kind="mesa" id={s.id} label="🖨️ Imprimir conta" className="btn-ghost w-full" />
+                </div>
                 {paying === s.id ? (
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">Como o cliente pagou {formatBRL(total)}?</p>

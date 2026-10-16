@@ -29,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const current = await prisma.order.findUnique({
     where: { id: id.data },
-    select: { status: true, type: true, deliveryFee: true },
+    select: { status: true, type: true, deliveryFee: true, driverId: true },
   });
   if (!current) return jsonError("Pedido não encontrado.", 404);
   if (!STATUS_TRANSITIONS[current.status].includes(next)) {
@@ -40,10 +40,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return jsonError("Defina a taxa de entrega antes de aceitar o pedido.", 409);
   }
 
+  // Delivery saindo para entrega: registra o motoboy que levou (obrigatório se houver motoboy cadastrado).
+  let driverId: string | null | undefined;
+  if (current.type === "DELIVERY" && next === "OUT_FOR_DELIVERY") {
+    driverId = parsed.data.driverId ?? current.driverId;
+    if (driverId) {
+      const driver = await prisma.driver.findFirst({ where: { id: driverId, active: true }, select: { id: true } });
+      if (!driver) return jsonError("Motoboy inválido ou inativo. Escolha outro.", 422);
+    } else if (await prisma.driver.count({ where: { active: true } })) {
+      return jsonError("Selecione o motoboy que vai fazer a entrega.", 422);
+    }
+  }
+
   // Concorrência otimista: só atualiza se o status ainda for o lido (dois operadores clicando ao mesmo tempo).
   const { count } = await prisma.order.updateMany({
     where: { id: id.data, status: current.status },
-    data: { status: next, ...statusTimestamp(next) },
+    data: { status: next, ...statusTimestamp(next), ...(driverId !== undefined && { driverId }) },
   });
   if (count === 0) return jsonError("O pedido foi alterado por outro usuário. Atualize a tela.", 409);
 

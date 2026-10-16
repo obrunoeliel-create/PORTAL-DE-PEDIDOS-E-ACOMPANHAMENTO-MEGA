@@ -34,6 +34,15 @@ const customerName = text(2, 80).refine((v) => (v.match(/\p{L}/gu) ?? []).length
 
 const cents = z.number().int().min(0).max(1_000_000); // até R$ 10.000,00
 
+/** CEP opcional: aceita com ou sem traço; guarda só os 8 dígitos. */
+const cep = z
+  .string()
+  .max(12)
+  .optional()
+  .transform((v) => (v ? v.replace(/\D/g, "") : undefined))
+  .pipe(z.string().regex(/^\d{8}$/, "CEP inválido.").optional())
+  .transform((v) => v || undefined);
+
 export const orderItemSchema = z
   .object({
     productId: id,
@@ -52,6 +61,7 @@ const addressSchema = z
     district: text(2, 80),
     complement: optionalText(80),
     reference: optionalText(120),
+    zip: cep,
     // Bairro escolhido na lista de taxas; ausente = "outro bairro" (taxa definida pela loja)
     zoneId: id.optional(),
   })
@@ -105,6 +115,7 @@ export const customerAddressSchema = z
     district: text(2, 80),
     complement: optionalText(80),
     reference: optionalText(120),
+    zip: cep,
     zoneId: id.optional(),
   })
   .strict();
@@ -137,15 +148,60 @@ export const loginSchema = z
   })
   .strict();
 
+// driverId: motoboy escolhido ao liberar o delivery ("Saiu p/ entrega").
 export const updateStatusSchema = z
-  .object({ status: z.enum(["PREPARING", "OUT_FOR_DELIVERY", "COMPLETED", "CANCELED"]) })
+  .object({ status: z.enum(["PREPARING", "OUT_FOR_DELIVERY", "COMPLETED", "CANCELED"]), driverId: id.optional() })
   .strict();
 
 export const assignDriverSchema = z.object({ driverId: id.nullable() }).strict();
 
 export const createDriverSchema = z.object({ name: text(2, 60), phone }).strict();
 
-export const toggleProductSchema = z.object({ active: z.boolean() }).strict();
+/** Cardápio no portal: ativar/desativar e mudar preço (do item ou de cada tamanho). */
+export const updateProductSchema = z
+  .object({
+    active: z.boolean().optional(),
+    price: z.number().int().min(0).max(100_000).optional(),
+    variants: z.array(z.object({ id, price: z.number().int().min(0).max(100_000) }).strict()).max(10).optional(),
+  })
+  .strict()
+  .refine((v) => v.active !== undefined || v.price !== undefined || v.variants !== undefined, "Nada para alterar.");
+
+/**
+ * Pedido lançado pela loja no portal (balcão, delivery ou item a mais na mesa).
+ * Telefone é opcional (cliente no balcão); os preços continuam sendo calculados no servidor.
+ */
+const staffPhone = z
+  .string()
+  .max(30)
+  .optional()
+  .transform((v) => (v ? v.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") : ""))
+  .pipe(z.string().regex(/^(\d{10,11})?$/, "Telefone inválido."));
+const staffBase = {
+  customerName: text(1, 80),
+  notes: optionalText(280),
+  items: z.array(orderItemSchema).min(1, "Adicione pelo menos um item.").max(60),
+};
+const staffRemote = {
+  ...staffBase,
+  customerPhone: staffPhone,
+  paymentMethod: z.enum(["PIX", "CARD", "CASH"]),
+  changeFor: cents.optional(),
+};
+export const staffOrderSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      ...staffRemote,
+      type: z.literal("DELIVERY"),
+      address: addressSchema,
+      // Taxa digitada pela loja quando o bairro não está na lista (null/ausente = a definir)
+      deliveryFee: z.number().int().min(0).max(20_000).nullable().optional(),
+    })
+    .strict(),
+  z.object({ ...staffRemote, type: z.literal("PICKUP") }).strict(),
+  z.object({ ...staffBase, type: z.literal("TABLE"), tableNumber: z.number().int().min(1).max(999) }).strict(),
+]);
+export type StaffOrderInput = z.infer<typeof staffOrderSchema>;
 
 export const cuidParam = id;
 

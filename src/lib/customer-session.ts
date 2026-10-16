@@ -46,6 +46,7 @@ export const customerSelect = {
   addressDistrict: true,
   addressComplement: true,
   addressReference: true,
+  addressZip: true,
   zoneId: true,
 } as const;
 
@@ -59,6 +60,7 @@ export type CustomerProfile = {
     district: string;
     complement: string | null;
     reference: string | null;
+    zip: string | null;
     zoneId: string | null;
   } | null;
 };
@@ -72,6 +74,7 @@ export function toProfile(c: {
   addressDistrict: string | null;
   addressComplement: string | null;
   addressReference: string | null;
+  addressZip: string | null;
   zoneId: string | null;
 }): CustomerProfile {
   return {
@@ -86,6 +89,7 @@ export function toProfile(c: {
             district: c.addressDistrict,
             complement: c.addressComplement,
             reference: c.addressReference,
+            zip: c.addressZip,
             zoneId: c.zoneId,
           }
         : null,

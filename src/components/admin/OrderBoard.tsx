@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BoardOrder, OrderStatusValue } from "@/types/order";
+import Link from "next/link";
+import type { BoardOrder, DriverDTO, OrderStatusValue } from "@/types/order";
 import { STATUS_LABEL } from "@/lib/labels";
 import { OrderCard } from "./OrderCard";
 import { fetchBoardOrders, upsertOrder, useStaffSocket } from "./useStaffSocket";
@@ -23,7 +24,7 @@ const COLUMNS: { status: OrderStatusValue; title: string; icon: string; dot: str
   { status: "COMPLETED", title: STATUS_LABEL.COMPLETED, icon: "✅", dot: "bg-emerald-500", head: "bg-emerald-600 text-white" },
 ];
 
-export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardOrder[]; storeName: string }) {
+export function OrderBoard({ initialOrders, storeName, drivers = [] }: { initialOrders: BoardOrder[]; storeName: string; drivers?: DriverDTO[] }) {
   const [orders, setOrders] = useState(initialOrders);
   const [busyId, setBusyId] = useState<string | null>(null);
   // Som já vem ligado; só fica desligado se a loja desligar neste aparelho.
@@ -44,6 +45,8 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
   const connected = useStaffSocket({
     onNew: (order) => {
       setOrders((prev) => upsertOrder(prev, order));
+      // Pedido lançado pela própria loja já entra aceito: sem alarme.
+      if (order.status !== "PENDING") return;
       setToast(`Novo pedido #${order.number} — ${order.customerName}`);
       if (soundOnRef.current) playOrderAlert();
     },
@@ -112,14 +115,14 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
     }
   }
 
-  async function changeStatus(order: BoardOrder, status: OrderStatusValue) {
+  async function changeStatus(order: BoardOrder, status: OrderStatusValue, driverId?: string) {
     setBusyId(order.id);
     setError(null);
     try {
       const res = await fetch(`/api/admin/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(driverId && { driverId }) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -204,6 +207,9 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
             👆 Toque em qualquer lugar da tela para liberar o som
           </span>
         )}
+        <Link href="/admin/novo-pedido" className="btn-primary px-4 py-2 text-sm shadow-card">
+          ➕ Novo pedido
+        </Link>
         <PrintSettings />
         <button
           onClick={toggleSound}
@@ -266,6 +272,7 @@ export function OrderBoard({ initialOrders, storeName }: { initialOrders: BoardO
                     onSetFee={setFee}
                     onChangeTable={changeTable}
                     storeName={storeName}
+                    drivers={drivers}
                     highlight={o.status === "PENDING"}
                   />
                 ))}

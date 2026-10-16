@@ -1,7 +1,8 @@
 import { formatBRL } from "@/lib/money";
 import { itemTitle } from "@/lib/item-title";
 
-// Cupom para impressora térmica (80 ou 58 mm) ou folha A4. Só preto, letras grandes no que importa.
+// Cupom para impressora térmica (80 ou 58 mm) ou folha A4. Só preto, letra sem serifa e em negrito
+// (a térmica imprime mais nítido), espaçamento curto para gastar menos papel.
 
 export type ReceiptItem = {
   id: string;
@@ -16,9 +17,9 @@ export type ReceiptItem = {
 };
 
 const WIDTH_CSS: Record<string, string> = {
-  "80": "@page { size: 80mm auto; margin: 0 } .receipt { width: 72mm; font-size: 12.5px }",
-  "58": "@page { size: 58mm auto; margin: 0 } .receipt { width: 50mm; font-size: 11px }",
-  a4: "@page { size: A4; margin: 12mm } .receipt { width: 100mm; font-size: 13px }",
+  "80": "@page { size: 80mm auto; margin: 0 } .receipt { width: 72mm; font-size: 14px }",
+  "58": "@page { size: 58mm auto; margin: 0 } .receipt { width: 48mm; font-size: 12.5px }",
+  a4: "@page { size: A4; margin: 12mm } .receipt { width: 100mm; font-size: 14px }",
 };
 
 export function paperWidth(w: string | undefined) {
@@ -29,21 +30,23 @@ export function paperWidth(w: string | undefined) {
 export function receiptCss(width: string) {
   return `
         ${WIDTH_CSS[width] ?? WIDTH_CSS["80"]}
-        .receipt { margin: 0 auto; padding: 3mm 2mm 6mm; font-family: "Courier New", ui-monospace, monospace; line-height: 1.3; color: #000; background: #fff; }
+        .receipt { margin: 0 auto; padding: 1mm 1mm 3mm; font-family: Arial, Helvetica, "Liberation Sans", sans-serif; font-weight: 600; line-height: 1.22; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .receipt * { color: #000 !important; }
         .r-center { text-align: center; }
-        .r-store { font-size: 1.25em; font-weight: 800; }
-        .r-big { font-size: 1.6em; font-weight: 800; letter-spacing: .02em; }
-        .r-tag { display: inline-block; border: 2px solid #000; padding: 1px 6px; font-weight: 800; font-size: 1.15em; margin-top: 2px; }
-        .r-sep { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
-        .r-row { display: flex; justify-content: space-between; gap: 8px; }
+        .r-store { font-size: 1.1em; font-weight: 800; }
+        .r-big { font-size: 1.75em; font-weight: 900; line-height: 1.1; }
+        .r-tag { display: inline-block; border: 2.5px solid #000; padding: 0 8px; font-weight: 900; font-size: 1.15em; margin-top: 2px; }
+        .r-sep { border: 0; border-top: 1.5px dashed #000; margin: 4px 0; }
+        .r-row { display: flex; justify-content: space-between; gap: 6px; }
         .r-row > span:last-child { white-space: nowrap; }
-        .r-item { margin: 4px 0; }
-        .r-item-name { font-weight: 700; }
-        .r-sub { padding-left: 1.2em; }
-        .r-total { font-size: 1.35em; font-weight: 800; }
-        .r-box { border: 1px solid #000; padding: 4px; margin: 4px 0; }
-        .r-small { font-size: .85em; }`;
+        .r-item { margin: 3px 0; }
+        .r-item-name { font-weight: 800; font-size: 1.08em; }
+        .r-sub { padding-left: 1em; font-weight: 600; }
+        .r-note { padding-left: 1em; font-weight: 800; }
+        .r-total { font-size: 1.45em; font-weight: 900; }
+        .r-box { border: 1.5px solid #000; padding: 3px 4px; margin: 3px 0; }
+        .r-person { border-top: 2.5px solid #000; border-bottom: 1px solid #000; font-weight: 900; font-size: 1.08em; padding: 1px 0; margin-top: 5px; }
+        .r-small { font-size: .82em; font-weight: 500; }`;
 }
 
 export function ReceiptShell({ width, children }: { width: string; children: React.ReactNode }) {
@@ -92,7 +95,7 @@ export function Items({ items }: { items: ReceiptItem[] }) {
             />
             {i.variantName && <div className="r-sub">{i.variantName}</div>}
             {addons.length > 0 && <div className="r-sub">+ {addons.join(", ")}</div>}
-            {i.notes && <div className="r-sub">** {i.notes}</div>}
+            {i.notes && <div className="r-note">OBS: {i.notes}</div>}
           </div>
         );
       })}

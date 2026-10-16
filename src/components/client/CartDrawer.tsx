@@ -10,6 +10,8 @@ import { itemTitle } from "@/lib/item-title";
 import { buildOrderMessage, buildWhatsAppUrl, formatAddress } from "@/lib/whatsapp";
 import { PixQrCode } from "./PixQrCode";
 import { Field, maskPhone } from "./form";
+import { CepField } from "./CepField";
+import { matchZone } from "@/lib/cep";
 
 type Props = {
   cart: CartItem[];
@@ -51,7 +53,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
   // Delivery com cadastro: "saved" = entregar no endereço salvo; "other" = digitar outro endereço.
   const [addressChoice, setAddressChoice] = useState<"saved" | "other">(customer?.address ? "saved" : "other");
   const [saveAddress, setSaveAddress] = useState(false);
-  const [address, setAddress] = useState({ street: "", number: "", district: "", complement: "", reference: "" });
+  const [address, setAddress] = useState({ street: "", number: "", district: "", complement: "", reference: "", zip: "" });
   const [payment, setPayment] = useState<PaymentMethodValue>(settings.pixEnabled ? "PIX" : "CARD");
   const [changeFor, setChangeFor] = useState("");
   const [notes, setNotes] = useState("");
@@ -82,6 +84,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
           district: savedZone ? savedZone.name : saved.district,
           complement: saved.complement ?? "",
           reference: saved.reference ?? "",
+          zip: saved.zip ?? "",
         }
       : address;
   const effectiveZoneId = usingSaved ? savedZone?.id ?? "" : zoneId;
@@ -187,6 +190,7 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
           zoneId: zone?.id,
           complement: effective.complement || undefined,
           reference: effective.reference || undefined,
+          zip: effective.zip.length === 8 ? effective.zip : undefined,
         },
       }),
       customerName: name,
@@ -509,6 +513,21 @@ export function CartDrawer({ cart, setCart, mode, onChangeMode, settings, zones,
               )}
               {(!saved || addressChoice === "other") && (
               <div className="space-y-3">
+                <CepField
+                  id="f-cep"
+                  value={address.zip}
+                  onChange={(zip) => setAddress((a) => ({ ...a, zip }))}
+                  onFound={(found) => {
+                    setAddress((a) => ({ ...a, street: found.street || a.street, district: found.district || a.district }));
+                    if (found.street) clearErr("address.street");
+                    const z = matchZone(zones, found.district);
+                    if (zones.length) {
+                      setZoneId(z ? z.id : OTHER_ZONE);
+                      clearErr("address.zoneId");
+                    }
+                    setTimeout(() => document.getElementById("f-number")?.focus(), 50);
+                  }}
+                />
                 {zones.length > 0 && (
                   <Field id="f-zone" label="Bairro" required error={fieldErrors["address.zoneId"]}>
                     <select

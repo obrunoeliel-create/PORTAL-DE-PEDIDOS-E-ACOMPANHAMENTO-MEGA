@@ -4,15 +4,17 @@ import { requirePageSession } from "@/lib/auth";
 import { getStoreSettings } from "@/lib/settings";
 import { cuidParam } from "@/lib/validators";
 import { formatBRL } from "@/lib/money";
-import { PAYMENT_LABEL, STATUS_LABEL } from "@/lib/labels";
+import { PAYMENT_LABEL } from "@/lib/labels";
+import { maskCep } from "@/lib/cep";
 import { Items, ReceiptShell, Row, Sep, paperWidth, printDate } from "@/components/print/Receipt";
 import { PrintControls } from "@/components/print/PrintControls";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Imprimir pedido" };
 
-const TYPE_TITLE = { DELIVERY: "DELIVERY", PICKUP: "RETIRADA NO BALCÃO", TABLE: "MESA" } as const;
+const TYPE_TITLE = { DELIVERY: "DELIVERY", PICKUP: "BALCÃO", TABLE: "MESA" } as const;
 
+/** Cupom do pedido (cozinha / entrega): o que importa em letra grande, sem linhas sobrando. */
 export default async function PrintOrderPage({
   params,
   searchParams,
@@ -32,37 +34,34 @@ export default async function PrintOrderPage({
   if (!order) notFound();
 
   const isDelivery = order.type === "DELIVERY";
+  const typeTitle = order.type === "TABLE" && order.tableNumber ? `MESA ${order.tableNumber}` : TYPE_TITLE[order.type];
   return (
     <ReceiptShell width={paperWidth(sp.w)}>
       <PrintControls auto={sp.auto === "1"} />
       <div className="r-center">
         <div className="r-store">{settings.storeName}</div>
+        <div className="r-big">#{order.number}</div>
+        <div className="r-tag">{typeTitle}</div>
+        {order.status === "CANCELED" && <div className="r-tag">CANCELADO</div>}
         <div className="r-small">{printDate.format(order.createdAt)}</div>
-        <Sep />
-        <div className="r-big">PEDIDO #{order.number}</div>
-        <div className="r-tag">{order.type === "TABLE" && order.tableNumber ? `MESA ${order.tableNumber}` : TYPE_TITLE[order.type]}</div>
-        {order.status === "CANCELED" && <div className="r-tag">*** CANCELADO ***</div>}
       </div>
       <Sep />
 
       <div>
-        <strong>Cliente:</strong> {order.customerName}
+        <strong>{order.customerName}</strong>
+        {order.customerPhone && <span> · {order.customerPhone}</span>}
       </div>
-      {order.customerPhone && (
-        <div>
-          <strong>Telefone:</strong> {order.customerPhone}
-        </div>
-      )}
       {isDelivery && (
         <div className="r-box">
           <div>
             <strong>
               {order.addressStreet}, {order.addressNumber ?? "s/n"}
             </strong>
+            {order.addressComplement && <span> — {order.addressComplement}</span>}
           </div>
-          {order.addressComplement && <div>{order.addressComplement}</div>}
           <div>
-            <strong>Bairro:</strong> {order.addressDistrict}
+            {order.addressDistrict}
+            {order.addressZip && <span> · CEP {maskCep(order.addressZip)}</span>}
           </div>
           {order.addressReference && <div>Ref.: {order.addressReference}</div>}
         </div>
@@ -77,27 +76,24 @@ export default async function PrintOrderPage({
       )}
       <Sep />
 
-      <Row left="Subtotal" right={formatBRL(order.subtotal)} />
-      {isDelivery && <Row left="Taxa de entrega" right={order.deliveryFee === null ? "a definir" : formatBRL(order.deliveryFee)} />}
+      {isDelivery && <Row left="Subtotal" right={formatBRL(order.subtotal)} />}
+      {isDelivery && <Row left="Entrega" right={order.deliveryFee === null ? "a definir" : formatBRL(order.deliveryFee)} />}
       <Row className="r-total" left="TOTAL" right={formatBRL(order.total)} />
-      <Sep />
-
       <div>
         <strong>Pagamento:</strong> {PAYMENT_LABEL[order.paymentMethod]}
+        {order.changeFor ? (
+          <span>
+            {" "}
+            · troco p/ {formatBRL(order.changeFor)} (levar {formatBRL(Math.max(0, order.changeFor - order.total))})
+          </span>
+        ) : null}
       </div>
-      {order.changeFor ? (
-        <div>
-          <strong>Troco para:</strong> {formatBRL(order.changeFor)} (levar {formatBRL(Math.max(0, order.changeFor - order.total))})
-        </div>
-      ) : null}
       {order.driver && (
         <div>
-          <strong>Entregador:</strong> {order.driver.name}
+          <strong>Motoboy:</strong> {order.driver.name}
         </div>
       )}
-      <div className="r-small">Situação: {STATUS_LABEL[order.status]}</div>
-      <Sep />
-      <div className="r-center r-small">Impresso em {printDate.format(new Date())}</div>
+      {order.createdBy && <div className="r-small">Lançado na loja por {order.createdBy}</div>}
     </ReceiptShell>
   );
 }

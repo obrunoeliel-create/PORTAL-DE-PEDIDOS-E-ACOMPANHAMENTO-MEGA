@@ -31,6 +31,7 @@ export type BoardOrder = {
   addressDistrict: string | null;
   addressComplement: string | null;
   addressReference: string | null;
+  addressZip: string | null;
   paymentMethod: PaymentMethodValue;
   changeFor: number | null;
   subtotal: number;
@@ -38,6 +39,8 @@ export type BoardOrder = {
   deliveryFee: number | null;
   total: number;
   notes: string | null;
+  /** Pedido lançado pela loja (nome de quem lançou); null = feito pelo cliente */
+  createdBy: string | null;
   whatsappUpdates: boolean;
   waAcceptedAt: string | null;
   waDispatchedAt: string | null;

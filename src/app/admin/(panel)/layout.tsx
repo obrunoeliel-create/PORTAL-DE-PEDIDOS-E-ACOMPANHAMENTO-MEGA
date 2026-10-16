@@ -11,6 +11,7 @@ export const metadata = { title: "Portal da loja" };
 
 const NAV = [
   { href: "/admin", label: "Pedidos", icon: "🔔", managerOnly: false },
+  { href: "/admin/novo-pedido", label: "Novo pedido", icon: "➕", managerOnly: false },
   { href: "/admin/historico", label: "Histórico", icon: "🗂️", managerOnly: false },
   { href: "/admin/comandas", label: "Comandas", icon: "🧾", managerOnly: false },
   { href: "/admin/despacho", label: "Despacho", icon: "🛵", managerOnly: false },

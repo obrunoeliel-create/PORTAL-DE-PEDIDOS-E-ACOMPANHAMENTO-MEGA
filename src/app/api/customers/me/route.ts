@@ -44,6 +44,7 @@ export async function PATCH(req: Request) {
       addressDistrict: district,
       addressComplement: a.complement ?? null,
       addressReference: a.reference ?? null,
+      addressZip: a.zip ?? null,
       zoneId,
     },
     select: customerSelect,

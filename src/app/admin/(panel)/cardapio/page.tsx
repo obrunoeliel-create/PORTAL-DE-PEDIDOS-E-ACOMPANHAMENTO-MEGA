@@ -5,7 +5,7 @@ import { MenuManager } from "@/components/admin/MenuManager";
 export const dynamic = "force-dynamic";
 
 export default async function MenuAdminPage() {
-  await requirePageSession();
+  const user = await requirePageSession();
   const categories = await prisma.category.findMany({
     orderBy: { sortOrder: "asc" },
     select: {
@@ -18,10 +18,10 @@ export default async function MenuAdminPage() {
           name: true,
           price: true,
           active: true,
-          variants: { orderBy: { sortOrder: "asc" }, select: { name: true, price: true } },
+          variants: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, price: true } },
         },
       },
     },
   });
-  return <MenuManager categories={categories} />;
+  return <MenuManager categories={categories} canEditPrices={user.role === "MANAGER"} />;
 }

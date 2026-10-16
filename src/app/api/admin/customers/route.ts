@@ -28,6 +28,11 @@ export async function GET(req: Request) {
       addressStreet: true,
       addressNumber: true,
       addressDistrict: true,
+      // Endereço completo: o pedido lançado pela loja preenche o delivery com um clique
+      addressComplement: true,
+      addressReference: true,
+      addressZip: true,
+      zoneId: true,
       lastOrderAt: true,
       createdAt: true,
       _count: { select: { orders: true } },

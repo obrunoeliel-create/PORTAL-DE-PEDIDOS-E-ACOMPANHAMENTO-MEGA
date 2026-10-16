@@ -69,6 +69,7 @@ export type CustomerProfile = {
     district: string;
     complement: string | null;
     reference: string | null;
+    zip: string | null;
     zoneId: string | null;
   } | null;
 };
