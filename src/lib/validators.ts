@@ -140,8 +140,53 @@ const optionalEmail = z
   .transform((v) => v || undefined)
   .pipe(z.string().email("Informe um e-mail válido ou deixe em branco.").optional());
 
+/** Clube Mega Jurema: dados opcionais do perfil. */
+const birthDate = z
+  .string()
+  .max(10)
+  .optional()
+  .transform((v) => v || undefined)
+  .pipe(
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.")
+      .refine((v) => {
+        const d = new Date(`${v}T12:00:00Z`);
+        const age = (Date.now() - d.getTime()) / (365.25 * 86_400_000);
+        return !Number.isNaN(d.getTime()) && age >= 10 && age <= 110;
+      }, "Data de nascimento inválida.")
+      .optional(),
+  );
+const clubProfile = {
+  birthDate,
+  city: optionalText(60),
+  gender: z.enum(["F", "M", "O", ""]).optional().transform((v) => v || undefined),
+};
+const referralCode = z
+  .string()
+  .max(20)
+  .optional()
+  .transform((v) => (v ? v.trim().toUpperCase() : undefined))
+  .pipe(z.string().regex(/^[A-Z0-9]{4,16}$/, "Código de indicação inválido.").optional());
+
 export const customerRegisterSchema = z
-  .object({ name: customerName, phone: whatsappPhone, email: optionalEmail, pin, address: customerAddressSchema.optional(), marketingOptIn: z.boolean().default(false) })
+  .object({
+    name: customerName,
+    phone: whatsappPhone,
+    email: optionalEmail,
+    pin,
+    address: customerAddressSchema.optional(),
+    marketingOptIn: z.boolean().default(false),
+    // Regulamento do clube + política de privacidade: aceite obrigatório (LGPD)
+    acceptTerms: z.literal(true, { errorMap: () => ({ message: "Aceite o regulamento e a política de privacidade." }) }),
+    referralCode,
+    ...clubProfile,
+  })
+  .strict();
+
+/** Cliente antigo entrando no clube ou atualizando o perfil do clube. */
+export const clubProfileSchema = z
+  .object({ acceptTerms: z.literal(true).optional(), email: optionalEmail, marketingOptIn: z.boolean().optional(), referralCode, ...clubProfile })
   .strict();
 
 export const customerLoginSchema = z

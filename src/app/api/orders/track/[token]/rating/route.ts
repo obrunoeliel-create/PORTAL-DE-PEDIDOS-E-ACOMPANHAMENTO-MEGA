@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sanitizeText } from "@/lib/sanitize";
 import { canRate } from "@/lib/rating";
 import { emitToStaff } from "@/lib/socket-server";
+import { onOrderRated } from "@/lib/club/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,5 +48,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   await prisma.waMessage.updateMany({ where: { orderId: order.id, kind: "RATING", status: "QUEUED" }, data: { status: "CANCELED", error: "Cliente já avaliou pelo link." } });
   await prisma.waEvent.create({ data: { kind: "RATING", detail: `Pedido #${order.number} avaliado com nota ${parsed.data.stars} (link)` } });
   emitToStaff("wa:message", { rating: order.number });
+  // Clube: bônus por avaliar.
+  await onOrderRated(order.id);
   return NextResponse.json({ ok: true, stars: parsed.data.stars });
 }

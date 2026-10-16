@@ -177,6 +177,17 @@ export function OrderTracker({ token }: { token: string }) {
 
         {(order.canRate || order.rating) && <RatingCard token={token} initial={order.rating} />}
 
+        {order.type !== "TABLE" && !canceled && (
+          <Link href="/clube" className="flex items-center gap-3 rounded-2xl bg-ink-950 p-4 text-sm text-white shadow-lift">
+            <span className="text-3xl">⭐</span>
+            <span className="flex-1">
+              <span className="block font-display font-bold">Clube Mega Jurema</span>
+              <span className="text-white/70">Este pedido vale pontos para trocar por esfihas, pizzas e vales. Veja seu cartão.</span>
+            </span>
+            <span className="text-white/60">→</span>
+          </Link>
+        )}
+
         {order.feePending && !canceled && (
           <div className="flex gap-3 rounded-2xl bg-mega-100 p-4 text-sm text-ink-900 ring-1 ring-mega-300">
             <span className="text-2xl" aria-hidden>

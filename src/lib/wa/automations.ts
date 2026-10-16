@@ -4,6 +4,7 @@ import { prisma } from "../prisma";
 import { formatBRL } from "../money";
 import { configuredPublicUrl } from "../public-url";
 import { enqueue } from "./queue";
+import { onOrderRated } from "../club/core";
 import { HUMAN_WHATSAPP, firstName, type TemplateKey, type TemplateVars } from "./templates";
 
 /**
@@ -45,7 +46,7 @@ function orderVars(order: Order, eta: string): TemplateVars {
 }
 
 /** Mudança no pedido → mensagens na fila. Nunca lança erro (não pode atrapalhar o pedido). */
-export async function onOrderEvent(orderId: string, event: OrderEvent): Promise<void> {
+export async function onOrderEvent(orderId: string, event: OrderEvent, extra: TemplateVars = {}): Promise<void> {
   try {
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order || order.type === "TABLE" || !order.whatsappUpdates) return;
@@ -63,7 +64,7 @@ export async function onOrderEvent(orderId: string, event: OrderEvent): Promise<
     if (!key) return;
 
     await touchContact(phone, order.customerName);
-    const vars = orderVars(order, cfg.deliveryEta);
+    const vars = { ...orderVars(order, cfg.deliveryEta), ...extra };
     await enqueue({ dedupeKey: `order:${order.id}:${key}`, kind: "STATUS", phone, templateKey: key, vars, orderId: order.id });
 
     if (event === "CANCELED") {
@@ -151,6 +152,7 @@ export async function handleIncoming(phone: string, text: string, pushName: stri
     });
     if (ask?.orderId && !(await prisma.orderRating.findUnique({ where: { orderId: ask.orderId } }))) {
       await prisma.orderRating.create({ data: { orderId: ask.orderId, stars, source: "WHATSAPP" } });
+      await onOrderRated(ask.orderId);
       await prisma.waEvent.create({ data: { kind: "RATING", detail: `***${phone.slice(-4)} deu nota ${stars}` } });
       await enqueue({ dedupeKey: `rating-thanks:${ask.orderId}`, kind: "REPLY", phone, templateKey: "RATING_THANKS", vars: { nome, estrelas: STARS[stars] } });
       return;

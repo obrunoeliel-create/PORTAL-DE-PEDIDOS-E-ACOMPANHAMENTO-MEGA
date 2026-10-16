@@ -17,6 +17,7 @@ const NAV = [
   { href: "/admin/despacho", label: "Despacho", icon: "🛵", managerOnly: false },
   { href: "/admin/cardapio", label: "Cardápio", icon: "📋", managerOnly: false },
   { href: "/admin/clientes", label: "Clientes", icon: "👥", managerOnly: false },
+  { href: "/admin/clube", label: "Clube", icon: "⭐", managerOnly: false },
   { href: "/admin/financeiro", label: "Financeiro", icon: "💰", managerOnly: true },
   { href: "/admin/mesas", label: "Mesas", icon: "🪑", managerOnly: true },
   { href: "/admin/taxas", label: "Taxas", icon: "📍", managerOnly: true },

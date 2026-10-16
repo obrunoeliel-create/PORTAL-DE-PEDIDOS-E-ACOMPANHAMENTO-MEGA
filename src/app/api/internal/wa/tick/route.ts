@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { robotTick } from "@/lib/wa/robot";
 import { processQueue } from "@/lib/wa/queue";
+import { clubTick } from "@/lib/club/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
 
   await robotTick().catch((err) => console.error("[whatsapp] robô:", err instanceof Error ? err.message : err));
   await processQueue().catch((err) => console.error("[whatsapp] fila:", err instanceof Error ? err.message : err));
+
+  // Clube Mega Jurema: aniversários, expiração de pontos, resgates vencidos (no máximo 1x por hora).
+  await clubTick().catch((err) => console.error("[clube] rotina:", err instanceof Error ? err.message : err));
 
   // Campanha que não tem mais nada na fila: concluída.
   const sending = await prisma.waCampaign.findMany({ where: { status: "SENDING" }, select: { id: true } });

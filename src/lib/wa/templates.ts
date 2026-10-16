@@ -12,7 +12,14 @@ export type TemplateKey =
   | "RATING_REQUEST"
   | "RATING_THANKS"
   | "COUPON_COMEBACK"
-  | "OPT_OUT_CONFIRM";
+  | "OPT_OUT_CONFIRM"
+  | "CLUB_WELCOME"
+  | "CLUB_LEVEL_UP"
+  | "CLUB_MISSION_DONE"
+  | "CLUB_BIRTHDAY"
+  | "CLUB_REFERRAL"
+  | "CLUB_REDEEMED"
+  | "CLUB_POINTS_EXPIRING";
 
 export type TemplateDef = { key: TemplateKey; name: string; when: string; body: string };
 
@@ -56,13 +63,13 @@ export const TEMPLATES: TemplateDef[] = [
     key: "ORDER_DELIVERED",
     name: "Pedido entregue",
     when: "Delivery: quando o pedido é concluído",
-    body: `Pedido *nº {{pedido}}* entregue! 🎉\nObrigado pela preferência, {{nome}} ❤️\nEsperamos você novamente.\n\n${ASSINATURA}`,
+    body: `Pedido *nº {{pedido}}* entregue! 🎉\nObrigado pela preferência, {{nome}} ❤️\nEsperamos você novamente.\n\n{{clube}}\n\n${ASSINATURA}`,
   },
   {
     key: "ORDER_PICKED_UP",
     name: "Pedido retirado",
     when: "Balcão: quando o pedido é concluído",
-    body: `Obrigado por retirar seu pedido *nº {{pedido}}*, {{nome}}! ❤️\nBom apetite e volte sempre.\n\n${ASSINATURA}`,
+    body: `Obrigado por retirar seu pedido *nº {{pedido}}*, {{nome}}! ❤️\nBom apetite e volte sempre.\n\n{{clube}}\n\n${ASSINATURA}`,
   },
   {
     key: "ORDER_CANCELED",
@@ -94,6 +101,48 @@ export const TEMPLATES: TemplateDef[] = [
     when: "Quando o cliente responde SAIR",
     body: `Pronto, {{nome}}. Você não vai mais receber mensagens automáticas da Mega Esfiha Jurema.\nSe mudar de ideia, responda VOLTAR. 🍕`,
   },
+  {
+    key: "CLUB_WELCOME",
+    name: "Clube: boas-vindas",
+    when: "Quando o cliente entra no Clube Mega Jurema",
+    body: `⭐ Bem-vindo(a) ao *Clube Mega Jurema*, {{nome}}!\n\nQuanto mais você volta, mais vantagens conquista. Você já ganhou *{{pontos}} pontos* de boas-vindas.\n\nCada pedido vale pontos para trocar por esfihas, pizzas, refrigerantes e vales-compras.\nVeja seu cartão: {{clubelink}}\n\n${ASSINATURA}`,
+  },
+  {
+    key: "CLUB_LEVEL_UP",
+    name: "Clube: subiu de nível",
+    when: "Quando o cliente sobe de nível (Prata, Ouro, Diamante)",
+    body: `🎉 Parabéns, {{nome}}! Você agora é *{{nivel}}* no Clube Mega Jurema!\n\n{{beneficio}}\n\nVeja suas vantagens: {{clubelink}}\n\n${ASSINATURA}`,
+  },
+  {
+    key: "CLUB_MISSION_DONE",
+    name: "Clube: missão concluída",
+    when: "Quando o cliente completa uma missão",
+    body: `🎯 Missão cumprida, {{nome}}!\n\n*{{missao}}* → você ganhou *{{pontos}} pontos*.\nSaldo: *{{saldo}} pontos*.\n\nVeja as próximas missões: {{clubelink}}\n\n${ASSINATURA}`,
+  },
+  {
+    key: "CLUB_BIRTHDAY",
+    name: "Clube: aniversário",
+    when: "No dia do aniversário do cliente",
+    body: `🎂 Feliz aniversário, {{nome}}!\n\nA Mega Esfiha Jurema preparou um presente: *{{pontos}} pontos* já estão no seu cartão do clube.\nSaldo: *{{saldo}} pontos*.\n\nComemore com a gente: {{site}}\n\n${ASSINATURA}`,
+  },
+  {
+    key: "CLUB_REFERRAL",
+    name: "Clube: indicação confirmada",
+    when: "Quando o amigo indicado faz o primeiro pedido",
+    body: `👯 {{nome}}, seu amigo(a) {{amigo}} fez o primeiro pedido com a sua indicação!\n\nVocê ganhou *{{pontos}} pontos*. Saldo: *{{saldo}} pontos*.\nIndique mais amigos: {{clubelink}}\n\n${ASSINATURA}`,
+  },
+  {
+    key: "CLUB_REDEEMED",
+    name: "Clube: resgate feito",
+    when: "Quando o cliente troca pontos por uma recompensa",
+    body: `🎁 Resgate confirmado, {{nome}}!\n\n*{{beneficio}}*\nCódigo: *{{cupom}}*\nVálido até {{validade}}.\n\nVales: digite o código no campo de cupom do site. Produtos: mostre o QR Code no caixa ou informe o código ao pedir.\nSeu cartão: {{clubelink}}\n\n${ASSINATURA}`,
+  },
+  {
+    key: "CLUB_POINTS_EXPIRING",
+    name: "Clube: pontos vão expirar",
+    when: "Dias antes dos pontos expirarem por falta de pedidos",
+    body: `⏳ {{nome}}, seus *{{saldo}} pontos* do Clube Mega Jurema expiram em {{validade}}.\n\nFaça um pedido até lá e eles continuam valendo (e você ainda ganha mais)!\n{{site}}\n\n${ASSINATURA}`,
+  },
 ];
 
 export const TEMPLATE_MAP = Object.fromEntries(TEMPLATES.map((t) => [t.key, t])) as Record<TemplateKey, TemplateDef>;
@@ -110,9 +159,22 @@ export const TEMPLATE_VARS: { v: string; desc: string }[] = [
   { v: "{{validade}}", desc: "Validade do cupom" },
   { v: "{{site}}", desc: "Endereço do cardápio" },
   { v: "{{estrelas}}", desc: "Nota dada pelo cliente" },
+  { v: "{{pontos}}", desc: "Pontos ganhos (clube)" },
+  { v: "{{saldo}}", desc: "Saldo de pontos (clube)" },
+  { v: "{{nivel}}", desc: "Nível no clube (Bronze, Prata...)" },
+  { v: "{{missao}}", desc: "Nome da missão concluída" },
+  { v: "{{beneficio}}", desc: "Benefício ou recompensa" },
+  { v: "{{amigo}}", desc: "Nome do amigo indicado" },
+  { v: "{{clube}}", desc: "Linha com os pontos ganhos no pedido (só para quem é do clube)" },
+  { v: "{{clubelink}}", desc: "Link do cartão do clube" },
 ];
 
-export type TemplateVars = Partial<Record<"nome" | "pedido" | "valor" | "link" | "tempo" | "cupom" | "desconto" | "validade" | "site" | "estrelas", string>>;
+export type TemplateVars = Partial<
+  Record<
+    "nome" | "pedido" | "valor" | "link" | "tempo" | "cupom" | "desconto" | "validade" | "site" | "estrelas" | "pontos" | "saldo" | "nivel" | "missao" | "beneficio" | "amigo" | "clube" | "clubelink",
+    string
+  >
+>;
 
 /** Troca {{variavel}} pelo valor; variável sem valor vira texto vazio. */
 export function renderTemplate(body: string, vars: TemplateVars): string {

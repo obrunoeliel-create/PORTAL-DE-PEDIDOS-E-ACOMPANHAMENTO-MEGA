@@ -6,6 +6,7 @@ import { PayloadError, getClientIp, jsonError, readJson, tooManyRequests, valida
 import { rateLimit } from "@/lib/rate-limit";
 import { sendCustomerWelcome } from "@/lib/welcome";
 import { touchContact } from "@/lib/wa/automations";
+import { joinClub } from "@/lib/club/core";
 import { CUSTOMER_COOKIE, customerCookieOptions, customerSelect, signCustomerToken, toProfile } from "@/lib/customer-session";
 
 export const runtime = "nodejs";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   }
   const parsed = customerRegisterSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
-  const { name, phone, email, pin, address, marketingOptIn } = parsed.data;
+  const { name, phone, email, pin, address, marketingOptIn, referralCode, birthDate, city, gender } = parsed.data;
 
   if (await prisma.customer.findUnique({ where: { phone }, select: { id: true } })) {
     return NextResponse.json(
@@ -56,11 +57,17 @@ export async function POST(req: Request) {
       addressZip: address?.zip ?? null,
       zoneId,
       marketingOptIn,
+      birthDate: birthDate ? new Date(`${birthDate}T00:00:00Z`) : null,
+      city: city ?? null,
+      gender: gender ?? null,
+      lgpdAcceptedAt: new Date(),
     },
     select: customerSelect,
   });
   // Contato do robô do WhatsApp (consentimento para cupons e promoções, se marcou).
   await touchContact(phone, name, marketingOptIn);
+  // Clube Mega Jurema: entra no clube (bônus de boas-vindas, código de indicação, indicação de amigo).
+  await joinClub(customer.id, { referralCode }).catch((err) => console.error("[clube] entrada:", err instanceof Error ? err.message : err));
 
   // Boas-vindas por WhatsApp e e-mail em segundo plano: não atrasa o cadastro.
   void sendCustomerWelcome(customer.id);

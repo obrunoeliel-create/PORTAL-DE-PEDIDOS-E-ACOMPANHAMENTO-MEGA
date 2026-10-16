@@ -40,6 +40,10 @@ export async function consumeCoupon(tx: Prisma.TransactionClient, code: string) 
     where: { code, active: true, validUntil: { gte: new Date() }, usedCount: { lt: prisma.coupon.fields.maxUses } },
     data: { usedCount: { increment: 1 } },
   });
+  // Vale do Clube Mega Jurema (o cupom tem o mesmo código do resgate): marca o resgate como usado.
+  if (count > 0 && code.startsWith("MJ-")) {
+    await tx.redemption.updateMany({ where: { code, status: "ISSUED" }, data: { status: "USED", usedAt: new Date(), usedBy: "cliente", usedWhere: "Pedido no site" } });
+  }
   return count > 0;
 }
 

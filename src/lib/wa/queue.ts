@@ -20,7 +20,7 @@ import { TEMPLATE_MAP, renderTemplate, withAutoNotice, type TemplateKey, type Te
 
 export type EnqueueInput = {
   dedupeKey: string;
-  kind: "STATUS" | "RATING" | "COUPON" | "CAMPAIGN" | "MANUAL" | "REPLY";
+  kind: "STATUS" | "RATING" | "COUPON" | "CAMPAIGN" | "MANUAL" | "REPLY" | "CLUB";
   phone: string;
   templateKey?: TemplateKey;
   vars?: TemplateVars;
@@ -65,6 +65,8 @@ export function kickQueue() {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const STALE_STATUS_MS = 3 * 60 * 60 * 1000;
 const MARKETING = new Set(["COUPON", "CAMPAIGN"]);
+// Não saem de madrugada: promoções e mensagens do clube (aniversário, nível, missão...).
+const QUIET_HOURS = new Set(["COUPON", "CAMPAIGN", "CLUB"]);
 
 /** Cupom e campanha só saem das 9h às 21h (horário de Brasília); avisos de pedido saem a qualquer hora. */
 export function marketingHoursNow(d = new Date()): boolean {
@@ -175,7 +177,7 @@ export async function processQueue() {
           notBefore: { lte: new Date() },
           // Sem o robô, só os avisos que têm modelo aprovado na Meta.
           ...(!robot && { kind: "STATUS", templateKey: { in: Object.keys(META_FALLBACK) } }),
-          ...(robot && !marketingHoursNow() && { kind: { notIn: [...MARKETING] } }),
+          ...(robot && !marketingHoursNow() && { kind: { notIn: [...QUIET_HOURS] } }),
         },
         orderBy: [{ notBefore: "asc" }, { createdAt: "asc" }],
       });

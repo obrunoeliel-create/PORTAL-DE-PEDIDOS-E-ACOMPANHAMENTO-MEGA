@@ -1,10 +1,12 @@
 import "server-only";
 import type { OrderStatus } from "@prisma/client";
 import { onOrderEvent, type OrderEvent } from "./wa/automations";
+import { onOrderCanceled, onOrderCompleted } from "./club/core";
 
 /**
  * Após uma mudança de status, coloca o aviso do cliente na fila do WhatsApp (robô da loja; se o robô
- * estiver desconectado, a API oficial da Meta serve de reserva para os avisos que têm modelo aprovado).
+ * estiver desconectado, a API oficial da Meta serve de reserva para os avisos que têm modelo aprovado)
+ * e atualiza o Clube Mega Jurema (pontos do pedido concluído; estorno se cancelado).
  * Nunca lança erro: falhas ficam registradas na mensagem e no pedido (waError).
  */
 export async function notifyStatusChange(orderId: string, status: OrderStatus): Promise<void> {
@@ -15,7 +17,11 @@ export async function notifyStatusChange(orderId: string, status: OrderStatus): 
     CANCELED: "CANCELED",
   };
   const event = map[status];
-  if (event) await onOrderEvent(orderId, event);
+  if (!event) return;
+  // Pontos primeiro: a mensagem de "pedido entregue" já diz quantos pontos o cliente ganhou.
+  const clube = status === "COMPLETED" ? await onOrderCompleted(orderId) : "";
+  if (status === "CANCELED") await onOrderCanceled(orderId);
+  await onOrderEvent(orderId, event, { clube });
 }
 
 /** Pedido novo (cliente ou loja): aviso de "recebido" (ou "em preparo", se a loja lançou já aceito). */

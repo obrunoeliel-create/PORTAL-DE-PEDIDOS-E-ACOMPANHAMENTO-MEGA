@@ -156,7 +156,13 @@ export function MenuApp({ categories, settings, initialTable, tableQrInvalid, zo
 
         <div className="relative mx-auto max-w-3xl px-4 pb-12 pt-6 sm:pt-10">
           {!tableLocked && (
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex justify-end gap-2">
+              <a
+                href="/clube"
+                className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-mega-400 to-amber-300 px-3.5 py-1.5 text-sm font-extrabold text-ink-950 shadow transition hover:scale-105"
+              >
+                ⭐ Clube
+              </a>
               {customer ? (
                 <div className="flex items-center gap-2 rounded-full bg-white/15 py-1 pl-1 pr-3 text-sm backdrop-blur">
                   <span className="grid h-7 w-7 place-items-center rounded-full bg-mega-400 font-display font-bold text-ink-900">

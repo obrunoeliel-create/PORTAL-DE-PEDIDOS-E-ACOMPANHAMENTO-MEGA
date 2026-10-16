@@ -135,6 +135,20 @@ O envio usa a **API oficial do WhatsApp Business (Meta Cloud API)** — o único
 
 O card do pedido no painel mostra se cada aviso foi enviado (✓) ou o erro da Meta; o botão manual de WhatsApp continua disponível.
 
+## Clube Mega Jurema (fidelidade e relacionamento)
+
+"Quanto mais você volta, mais vantagens conquista." Página do cliente em `/clube` (cartão, pedidos, recompensas, missões, indicação, extrato, ranking) e painel em **Portal → ⭐ Clube**.
+
+- **Entrada:** o cadastro do cliente já entra no clube (aceite obrigatório do regulamento/privacidade em `/clube/regulamento`). Cliente antigo entra pela página `/clube`.
+- **Pontos:** creditados quando o pedido é **concluído** (`src/lib/club/core.ts → onOrderCompleted`, chamado por `notifyStatusChange`). Base = itens − desconto (sem taxa) × pontos por real × multiplicador do nível × maior campanha ativa. Cancelamento estorna. Pedido feito sem login com o mesmo WhatsApp do cadastro também pontua.
+- **Extrato** (`PointsEntry`) com chave única por lançamento (nunca duplica); saldo em cache no cliente, atualizado na mesma transação. Resgate debita com `updateMany` condicionado ao saldo (clique duplo não deixa saldo negativo).
+- **Níveis** (Bronze, Prata, Ouro, Diamante) pelos pontos ganhos nos últimos 12 meses; resgatar não derruba o nível.
+- **Missões** (pedidos, gasto, sabores diferentes, dia da semana, pedido mínimo, indicações), **campanhas de pontos** (dobro/triplo por período, dia, horário, nível), **bônus** (boas-vindas, perfil completo, aniversário, indicação para os dois, avaliação).
+- **Resgate:** código único `MJ-XXXX-XXXX` + QR Code, validade configurável, uso único. Vales (R$/%) viram cupom pessoal com o mesmo código (usa no carrinho); produtos têm baixa no caixa (**Clube → Validar resgate**, liberado também para operadores), registrando quem, quando e onde.
+- **Rotina horária** (no relógio do WhatsApp): aniversários, aviso e expiração de pontos (X meses sem pedidos), resgates vencidos, recálculo de níveis.
+- **Mensagens** do clube pelo robô (tipo `CLUB`: respeita SAIR e o horário 9h–21h), textos editáveis em Portal → WhatsApp → Mensagens.
+- **Painel:** indicadores (sócios, ativos, retenção, receita e ticket de sócios x não sócios, pontos emitidos/usados), gráficos por dia/horário/nível, aniversariantes, clientes em risco de sumir, sugestões automáticas, ficha CRM do sócio, ajuste manual com motivo, auditoria (`ClubAudit`) e exportação CSV.
+
 ## Robô do WhatsApp (portal → WhatsApp)
 
 O número de avisos da loja é conectado **pelo QR Code**, como o WhatsApp Web (biblioteca Baileys, dentro do próprio servidor). A API da Meta acima vira reserva: se o robô estiver desconectado, os avisos que têm modelo aprovado saem por ela.

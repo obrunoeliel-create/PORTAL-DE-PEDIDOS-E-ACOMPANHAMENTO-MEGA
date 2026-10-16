@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CustomerProfile, DeliveryZoneOption } from "@/types/menu";
 import { formatBRL } from "@/lib/money";
 import { Logo } from "@/components/brand/Logo";
@@ -27,6 +27,19 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [birthDate, setBirthDate] = useState("");
+  const [city, setCity] = useState("Guarulhos");
+  const [referralCode, setReferralCode] = useState("");
+  // Veio por um link de indicação (?ref=): o código fica guardado no aparelho até o cadastro.
+  useEffect(() => {
+    try {
+      const ref = localStorage.getItem("mj_ref");
+      if (ref) setReferralCode(ref);
+    } catch {
+      /* armazenamento indisponível */
+    }
+  }, []);
   const [withAddress, setWithAddress] = useState(false);
   const [zoneId, setZoneId] = useState("");
   const [addr, setAddr] = useState({ street: "", number: "", district: "", complement: "", reference: "", zip: "" });
@@ -50,6 +63,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
     if (tab === "register") {
       if (!hasName(name)) errs.name = "Informe seu nome.";
       if (pin !== pin2) errs.pin2 = "As senhas não são iguais.";
+      if (!acceptTerms) errs.acceptTerms = "Para criar o cadastro, aceite o regulamento e a política de privacidade.";
       if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) errs.email = "Informe um e-mail válido ou deixe em branco.";
       if (withAddress) {
         if (zones.length && !zoneId) errs.zone = "Selecione seu bairro.";
@@ -73,6 +87,10 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
               phone,
               pin,
               marketingOptIn,
+              acceptTerms,
+              ...(birthDate && { birthDate }),
+              ...(city.trim() && { city: city.trim() }),
+              ...(referralCode.trim() && { referralCode: referralCode.trim() }),
               ...(email.trim() && { email: email.trim() }),
               ...(withAddress && {
                 address: {
@@ -91,6 +109,11 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
         if (data.fields) setErrors((p) => ({ ...p, ...data.fields }));
         if (res.status === 409) setTab("login");
         return;
+      }
+      try {
+        if (tab === "register") localStorage.removeItem("mj_ref");
+      } catch {
+        /* armazenamento indisponível */
       }
       onDone(data.customer as CustomerProfile);
     } catch {
@@ -115,7 +138,7 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
           <Logo size={64} className="relative mx-auto ring-4 ring-white/90" />
           <h2 className="relative mt-2 text-xl font-extrabold">{tab === "login" ? "Entrar no meu cadastro" : "Criar meu cadastro"}</h2>
           <p className="relative text-sm text-white/80">
-            {tab === "login" ? "Seus dados e endereço já aparecem no pedido." : "Faça uma vez e peça mais rápido nas próximas."}
+            {tab === "login" ? "Seus dados, endereço e pontos do clube." : "Peça mais rápido e entre no ⭐ Clube Mega Jurema: cada pedido vale pontos."}
           </p>
         </div>
 
@@ -164,6 +187,18 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
 
           {tab === "register" && (
             <>
+              <div className="grid grid-cols-2 gap-2">
+                <Field id="acc-birth" label="Aniversário (opcional)" error={errors.birthDate}>
+                  <input id="acc-birth" type="date" className={errInput(!!errors.birthDate)} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+                </Field>
+                <Field id="acc-city" label="Cidade" error={errors.city}>
+                  <input id="acc-city" className={errInput(!!errors.city)} value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} autoComplete="address-level2" />
+                </Field>
+              </div>
+              <p className="-mt-1 text-xs text-stone-500">🎂 Com o aniversário você ganha pontos de presente no seu dia.</p>
+              <Field id="acc-refcode" label="Código de quem te indicou (opcional)" error={errors.referralCode}>
+                <input id="acc-refcode" className={`${errInput(!!errors.referralCode)} font-mono uppercase`} value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} maxLength={16} placeholder="Ex: MARIA7K2" />
+              </Field>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-stone-200 p-3 text-sm">
                 <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
                 <span>
@@ -225,9 +260,19 @@ export function AccountSheet({ initialTab = "login", zones, prefill, onDone, onC
                   </Field>
                 </div>
               )}
+              <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 text-sm ${errors.acceptTerms ? "border-brand-500 bg-brand-50" : "border-stone-200"}`}>
+                <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-brand-600" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
+                <span>
+                  Li e aceito o{" "}
+                  <a href="/clube/regulamento" target="_blank" className="font-semibold text-brand-700 underline">
+                    regulamento do Clube e a política de privacidade
+                  </a>
+                  .{errors.acceptTerms && <span className="mt-1 block font-semibold text-brand-700">{errors.acceptTerms}</span>}
+                </span>
+              </label>
               <p className="text-xs text-stone-500">
-                🔒 Seus dados ficam guardados só para agilizar seus pedidos na Mega Esfiha Jurema. A senha impede que outra
-                pessoa veja seu endereço.
+                🔒 Seus dados ficam guardados só para seus pedidos e o clube da Mega Esfiha Jurema. A senha impede que outra
+                pessoa veja seu endereço e seus pontos.
               </p>
             </>
           )}

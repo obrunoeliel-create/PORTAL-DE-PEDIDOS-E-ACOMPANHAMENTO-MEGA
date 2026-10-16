@@ -22,10 +22,10 @@ enum OrderType {
 }
 
 enum OrderStatus {
-  PENDING          // Aguardando aceite
-  PREPARING        // Em preparo
+  PENDING // Aguardando aceite
+  PREPARING // Em preparo
   OUT_FOR_DELIVERY // Saiu para entrega / Pronto (balcão e mesa)
-  COMPLETED        // Concluído
+  COMPLETED // Concluído
   CANCELED
 }
 
@@ -227,9 +227,9 @@ model DeliveryZone {
 
 // Cliente com cadastro: entra com WhatsApp + senha de 4 dígitos e já encontra nome e endereço salvos.
 model Customer {
-  id                String    @id @default(cuid())
+  id                String            @id @default(cuid())
   name              String
-  phone             String    @unique // só dígitos, com DDD (ex: 11912345678)
+  phone             String            @unique // só dígitos, com DDD (ex: 11912345678)
   email             String? // opcional: recebe a confirmação do cadastro por e-mail
   pinHash           String
   addressStreet     String?
@@ -246,23 +246,47 @@ model Customer {
   welcomeEmailAt    DateTime?
   welcomeError      String?
   // Aceitou receber cupons e promoções no WhatsApp (consentimento LGPD, art. 7º, I)
-  marketingOptIn    Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  marketingOptIn    Boolean           @default(false)
+  // ---- Clube Mega Jurema ----
+  birthDate         DateTime?         @db.Date
+  city              String?
+  gender            String? // opcional: F, M, O (outro) ou vazio
+  lgpdAcceptedAt    DateTime? // aceitou o regulamento do clube e a política de privacidade
+  clubJoinedAt      DateTime?
+  pointsBalance     Int               @default(0) // saldo atual (cache do extrato, atualizado na mesma transação)
+  pointsEarned12m   Int               @default(0) // pontos ganhos nos últimos 12 meses (define o nível)
+  tier              String            @default("BRONZE")
+  tierSince         DateTime?
+  totalSavings      Int               @default(0) // economia acumulada em centavos (resgates e cupons)
+  referralCode      String?           @unique
+  referredById      String?
+  referredBy        Customer?         @relation("Referral", fields: [referredById], references: [id])
+  referrals         Customer[]        @relation("Referral")
+  lastPointsAt      DateTime?
+  pointsWarnedAt    DateTime?
+  birthdayGiftYear  Int?
+  ledger            PointsEntry[]
+  redemptions       Redemption[]
+  missions          MissionProgress[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([tier])
+  @@index([lastOrderAt])
 }
 
 // Comanda (conta) de uma mesa: aberta no primeiro pedido, fechada pela loja ao receber o pagamento.
 // Depois de fechada, o próximo pedido daquela mesa abre uma comanda nova (zerada).
 model TableSession {
-  id          String         @id @default(cuid())
-  tableNumber Int
-  openedAt    DateTime       @default(now())
-  closedAt    DateTime?
-  closedBy    String? // nome de quem fechou
-  paidWith    PaymentMethod? // como foi pago no caixa
-  total       Int? // total cobrado no fechamento, já com desconto (centavos)
-  discount    Int            @default(0) // desconto da Mesa Premiada aplicado no fechamento
-  orders      Order[]
+  id           String         @id @default(cuid())
+  tableNumber  Int
+  openedAt     DateTime       @default(now())
+  closedAt     DateTime?
+  closedBy     String? // nome de quem fechou
+  paidWith     PaymentMethod? // como foi pago no caixa
+  total        Int? // total cobrado no fechamento, já com desconto (centavos)
+  discount     Int            @default(0) // desconto da Mesa Premiada aplicado no fechamento
+  orders       Order[]
   mesaPremiada MesaPremiada?
 
   @@index([tableNumber, closedAt])
@@ -270,20 +294,20 @@ model TableSession {
 
 // Campanha "Mesa Premiada - Edição de Natal" (linha única de configuração).
 model CampanhaNatal {
-  id        Int      @id @default(1)
-  name      String   @default("Mesa Premiada - Edição de Natal")
-  active    Boolean  @default(true)
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-  weekdays  Int[] // dias ativos: 0=domingo ... 6=sábado
-  discount  Int      @default(5000) // centavos; conta menor ou igual sai de graça
+  id              Int      @id @default(1)
+  name            String   @default("Mesa Premiada - Edição de Natal")
+  active          Boolean  @default(true)
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  weekdays        Int[] // dias ativos: 0=domingo ... 6=sábado
+  discount        Int      @default(5000) // centavos; conta menor ou igual sai de graça
   // Só participam do sorteio as mesas desta faixa (inclusive)
-  minTable  Int      @default(1)
-  maxTable  Int      @default(26)
+  minTable        Int      @default(1)
+  maxTable        Int      @default(26)
   // Horário do sorteio nos dias de evento, em minutos desde a meia-noite (Brasília): 18:00 às 22:30
-  drawStartMinute Int @default(1080)
-  drawEndMinute   Int @default(1350)
-  updatedAt DateTime @updatedAt
+  drawStartMinute Int      @default(1080)
+  drawEndMinute   Int      @default(1350)
+  updatedAt       DateTime @updatedAt
 }
 
 // Mesa sorteada de cada dia da campanha (uma por dia). Fica só no servidor: o cliente
@@ -329,7 +353,7 @@ model WaAuth {
 // Configuração do robô e das automações (linha única).
 model WaConfig {
   id                 Int       @id @default(1)
-  enabled            Boolean   @default(true)  // envio automático ligado
+  enabled            Boolean   @default(true) // envio automático ligado
   ratingEnabled      Boolean   @default(true)
   ratingDelayHours   Int       @default(24)
   couponEnabled      Boolean   @default(true)
@@ -339,7 +363,7 @@ model WaConfig {
   couponPrefix       String    @default("VOLTE")
   couponMinOrder     Int       @default(0)
   deliveryEta        String    @default("40 a 60 minutos")
-  minIntervalSeconds Int       @default(4)    // pausa mínima entre mensagens (anti-bloqueio)
+  minIntervalSeconds Int       @default(4) // pausa mínima entre mensagens (anti-bloqueio)
   maxPerHour         Int       @default(150)
   // Qual servidor está com o robô ligado (evita duas conexões ao mesmo tempo durante uma publicação)
   leaseOwner         String?
@@ -378,7 +402,7 @@ model WaMessage {
   templateKey String?
   vars        Json            @default("{}")
   phone       String // só dígitos, com DDD (sem o 55)
-  body        String?         // texto final (preenchido no envio)
+  body        String? // texto final (preenchido no envio)
   status      WaMessageStatus @default(QUEUED)
   attempts    Int             @default(0)
   error       String?
@@ -414,7 +438,7 @@ model WaEvent {
 model WaContact {
   phone          String    @id // só dígitos, com DDD
   name           String?
-  jid            String?   // endereço real no WhatsApp (resolve o 9º dígito)
+  jid            String? // endereço real no WhatsApp (resolve o 9º dígito)
   marketingOptIn Boolean   @default(false)
   optInAt        DateTime?
   optOutAt       DateTime? // respondeu SAIR: não recebe mais nada automático
@@ -461,4 +485,159 @@ model OrderRating {
   comment   String?
   source    String // LINK ou WHATSAPP
   createdAt DateTime @default(now())
+}
+
+// =================== CLUBE MEGA JUREMA (fidelidade) ===================
+
+// Configuração do clube (linha única).
+model ClubConfig {
+  id                    Int      @id @default(1)
+  enabled               Boolean  @default(true)
+  pointsPerReal         Int      @default(1) // pontos a cada R$ 1,00 gasto nos itens (sem a taxa de entrega)
+  pointsExpiryMonths    Int      @default(12) // pontos expiram depois de X meses SEM PEDIDOS
+  welcomeBonus          Int      @default(50)
+  profileBonus          Int      @default(30) // completar perfil (aniversário + cidade + e-mail)
+  birthdayBonus         Int      @default(100)
+  referralBonusReferrer Int      @default(100)
+  referralBonusFriend   Int      @default(50)
+  ratingBonus           Int      @default(10) // avaliar o pedido
+  redemptionValidDays   Int      @default(30)
+  updatedAt             DateTime @updatedAt
+}
+
+// Níveis (Bronze, Prata, Ouro, Diamante): pelos pontos ganhos nos últimos 12 meses.
+model ClubTier {
+  key         String @id // BRONZE, PRATA, OURO, DIAMANTE
+  name        String
+  minPoints   Int
+  multiplier  Int    @default(100) // em %: 150 = ganha 1,5x pontos
+  color       String
+  icon        String
+  description String
+  benefits    String // um benefício por linha
+  sort        Int
+}
+
+// Extrato de pontos: toda entrada e saída (nada é apagado — auditoria).
+model PointsEntry {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  delta       Int // + ganhou, - usou/expirou
+  kind        String // ORDER, ORDER_REVERSAL, WELCOME, PROFILE, BIRTHDAY, REFERRAL, MISSION, RATING, REDEEM, REDEEM_REFUND, EXPIRE, ADJUST, CAMPAIGN
+  description String
+  orderId     String?
+  refId       String? // missão, resgate, indicação...
+  createdBy   String? // funcionário (ajuste manual)
+  // Chave única: o mesmo crédito nunca é dado duas vezes (ex: ORDER:<id>)
+  dedupeKey   String?  @unique
+  createdAt   DateTime @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([kind, createdAt])
+}
+
+// Catálogo de recompensas trocáveis por pontos.
+model Reward {
+  id          String       @id @default(cuid())
+  name        String
+  description String
+  kind        String // PRODUCT (retira na loja/junto do pedido), DISCOUNT (vale-compras em R$), PERCENT (desconto %), FREE_DELIVERY
+  value       Int          @default(0) // centavos (DISCOUNT/FREE_DELIVERY) ou % (PERCENT); PRODUCT: valor de referência
+  pointsCost  Int
+  minTier     String       @default("BRONZE")
+  emoji       String       @default("🎁")
+  stock       Int? // null = ilimitado
+  active      Boolean      @default(true)
+  sort        Int          @default(0)
+  createdAt   DateTime     @default(now())
+  redemptions Redemption[]
+}
+
+// Resgate: código único (e QR Code) que só pode ser usado uma vez.
+model Redemption {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rewardId   String
+  reward     Reward    @relation(fields: [rewardId], references: [id])
+  rewardName String
+  pointsCost Int
+  value      Int       @default(0)
+  status     String    @default("ISSUED") // ISSUED, USED, EXPIRED, CANCELED
+  expiresAt  DateTime
+  usedAt     DateTime?
+  usedBy     String? // funcionário que validou
+  usedWhere  String? // caixa / balcão / delivery / site
+  orderId    String?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, status])
+  @@index([status, expiresAt])
+}
+
+// Campanha de pontos: multiplica os pontos (dobro, triplo) num período, dias e horários.
+model PointsCampaign {
+  id         String   @id @default(cuid())
+  name       String
+  multiplier Int // em %: 200 = dobro, 300 = triplo
+  startsAt   DateTime
+  endsAt     DateTime
+  weekdays   String   @default("0123456") // dias da semana (0 = domingo)
+  hourFrom   Int      @default(0)
+  hourTo     Int      @default(24)
+  minTier    String   @default("BRONZE") // campanha exclusiva VIP: OURO
+  productIds String[] @default([]) // vazio = todos os itens; senão só esses produtos
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+// Missões (gamificação): o administrador cria quantas quiser.
+model Mission {
+  id           String            @id @default(cuid())
+  name         String
+  description  String
+  emoji        String            @default("🎯")
+  // ORDERS (fazer X pedidos), SPEND (gastar R$ X), DISTINCT_PRODUCTS (provar X sabores diferentes),
+  // WEEKDAY (pedir num dia da semana), MIN_TICKET (pedido acima de R$ X), REFERRALS (indicar X amigos)
+  kind         String
+  target       Int // quantidade, centavos ou nº de amigos
+  weekday      Int? // WEEKDAY: 0 = domingo
+  periodDays   Int? // conta só os últimos X dias (null = desde o início da missão)
+  rewardPoints Int
+  minTier      String            @default("BRONZE")
+  repeatable   Boolean           @default(false) // pode completar de novo depois de concluir
+  startsAt     DateTime          @default(now())
+  endsAt       DateTime?
+  active       Boolean           @default(true)
+  sort         Int               @default(0)
+  createdAt    DateTime          @default(now())
+  progress     MissionProgress[]
+}
+
+model MissionProgress {
+  id          String    @id @default(cuid())
+  missionId   String
+  mission     Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  progress    Int       @default(0)
+  completions Int       @default(0)
+  completedAt DateTime?
+  cycleStart  DateTime  @default(now()) // missão repetível: conta a partir daqui
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([missionId, customerId])
+}
+
+// Registro de ações sensíveis no clube (ajustes de pontos, validação de resgates, mudanças de regras).
+model ClubAudit {
+  id        String   @id @default(cuid())
+  action    String
+  detail    String
+  actor     String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
