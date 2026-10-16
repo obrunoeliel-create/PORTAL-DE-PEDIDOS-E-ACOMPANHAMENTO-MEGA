@@ -7,6 +7,7 @@ import { itemTitle } from "@/lib/item-title";
 import { ORDER_TYPE_LABEL, PAYMENT_LABEL, STATUS_LABEL } from "@/lib/labels";
 import { fetchSnapshot, flushQueue, loadDone, loadQueue, loadSnapshot, saveDone, saveQueue } from "@/lib/contingency-store";
 import { getPaperWidth } from "@/lib/print-client";
+import { fitPageToReceipt, paperWidthMm } from "@/lib/print-fit";
 import { Items, Row, Sep, receiptCss } from "@/components/print/Receipt";
 
 // Modo contingência: funciona sem internet com a última cópia guardada neste computador.
@@ -86,12 +87,16 @@ export function ContingencyApp() {
     if (!job) return;
     const after = () => setJob(null);
     window.addEventListener("afterprint", after);
-    const t = setTimeout(() => window.print(), 150);
+    const t = setTimeout(() => {
+      // Papel do tamanho do cupom (sem sobra em branco).
+      fitPageToReceipt(document.querySelector<HTMLElement>(".ct-print .receipt"), paperWidthMm(width));
+      window.print();
+    }, 150);
     return () => {
       clearTimeout(t);
       window.removeEventListener("afterprint", after);
     };
-  }, [job]);
+  }, [job, width]);
 
   const queued = useMemo(() => new Map(queue.map((q) => [q.sessionId, q])), [queue]);
 
