@@ -7,12 +7,13 @@ import { hourLabel } from "./CampaignCard";
 const CAMPAIGN_UNTIL = new Date("2027-01-07T03:00:00Z"); // 07/01/2027 00:00 (Brasília)
 const isSeason = () => Date.now() < CAMPAIGN_UNTIL.getTime();
 
+// Sem campanha ativa: só mensagens de Natal. Nada de sorteio ou prêmio aqui — divulgar promoção antes
+// da autorização da SPA/MF é vedado (Portaria SEAE/ME 7.638/2022, art. 34).
 const BASE_MESSAGES = [
-  "🎄 Vem aí a MESA PREMIADA",
-  "🎁 Campanha de Natal e Fim de Ano",
-  "⭐ Aguardem as surpresas!",
-  "🔔 Mega Esfiha Jurema deseja Boas Festas",
-  "🎅 Prêmios para quem pede na mesa",
+  "🎄 Boas Festas da Mega Esfiha Jurema",
+  "🔔 Esfihas quentinhas para o seu Natal",
+  "⭐ Peça pelo QR Code da sua mesa",
+  "🎅 Delivery e retirada no balcão",
 ];
 
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -48,7 +49,7 @@ export function ChristmasBanner({ campaign = null }: { campaign?: CampaignInfo |
   );
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-[#0f5132] via-[#b3121d] to-[#0f5132] text-white" role="marquee" aria-label="Vem aí a Mesa Premiada — Campanha de Natal e Fim de Ano. Aguardem!">
+    <div className="relative overflow-hidden bg-gradient-to-r from-[#0f5132] via-[#b3121d] to-[#0f5132] text-white" role="marquee" aria-label={MESSAGES.join(" · ")}>
       <XmasLights />
       <div className="flex w-max py-2.5 animate-marquee">
         {strip(false)}
